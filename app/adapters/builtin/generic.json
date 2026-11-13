@@ -1,0 +1,8 @@
+{
+  "id": "generic",
+  "name": "Generic (version tags)",
+  "appId": null,
+  "linkName": "{itemId}",
+  "gameVersion": [{ "source": "buildid" }],
+  "itemVersions": [{ "source": "tags", "regex": "^v?(\\d+(?:\\.\\d+)+)$" }]
+}

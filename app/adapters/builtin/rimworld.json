@@ -1,0 +1,12 @@
+{
+  "id": "rimworld",
+  "name": "RimWorld",
+  "appId": 294100,
+  "modsPath": "{install}/Mods",
+  "linkName": "{itemId}",
+  "gameVersion": [{ "source": "file", "path": "{install}/Version.txt", "regex": "^(\\d+\\.\\d+)" }],
+  "itemVersions": [
+    { "source": "file", "glob": "About/About.xml", "xpath": "//supportedVersions/li" },
+    { "source": "tags", "regex": "^(\\d+\\.\\d+)$" }
+  ]
+}
