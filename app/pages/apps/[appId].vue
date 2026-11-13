@@ -413,29 +413,49 @@ const view = ref<'items' | 'settings'>('items')
               />
             </template>
             <template #title-cell="{ row }">
-              <NuxtLink
-                :to="`/items/${row.original.item.id}`"
-                class="font-medium hover:underline"
-              >
-                {{ row.original.item.title || row.original.item.id }}
-              </NuxtLink>
-              <div class="flex gap-1">
-                <UBadge
-                  v-if="row.original.updateAvailable"
-                  size="sm"
-                  color="warning"
-                  variant="subtle"
+              <div class="flex items-center gap-3">
+                <img
+                  v-if="row.original.item.previewUrl"
+                  :src="row.original.item.previewUrl"
+                  alt=""
+                  class="size-10 shrink-0 rounded object-cover"
+                  loading="lazy"
                 >
-                  {{ row.original.latest ? 'update available' : 'not downloaded' }}
-                </UBadge>
-                <UBadge
-                  v-if="jobsStore.busyItemIds.value.has(row.original.item.id)"
-                  size="sm"
-                  color="primary"
-                  variant="subtle"
+                <div
+                  v-else
+                  class="flex size-10 shrink-0 items-center justify-center rounded bg-elevated"
                 >
-                  downloading
-                </UBadge>
+                  <UIcon
+                    name="i-lucide-package"
+                    class="size-5 text-dimmed"
+                  />
+                </div>
+                <div class="min-w-0">
+                  <NuxtLink
+                    :to="`/items/${row.original.item.id}`"
+                    class="font-medium hover:underline"
+                  >
+                    {{ row.original.item.title || row.original.item.id }}
+                  </NuxtLink>
+                  <div class="flex gap-1">
+                    <UBadge
+                      v-if="row.original.updateAvailable"
+                      size="sm"
+                      color="warning"
+                      variant="subtle"
+                    >
+                      {{ row.original.latest ? 'update available' : 'not downloaded' }}
+                    </UBadge>
+                    <UBadge
+                      v-if="jobsStore.busyItemIds.value.has(row.original.item.id)"
+                      size="sm"
+                      color="primary"
+                      variant="subtle"
+                    >
+                      downloading
+                    </UBadge>
+                  </div>
+                </div>
               </div>
             </template>
             <template #versions-cell="{ row }">
