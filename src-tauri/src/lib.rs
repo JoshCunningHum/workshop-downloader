@@ -55,6 +55,7 @@ pub fn run() {
             steamcmd::job::jobs_set_concurrency,
             steamcmd::job::steamcmd_status,
             steamcmd::job::steamcmd_install,
+            steamcmd::job::steam_app_index,
             library::snapshot_delete,
             library::snapshot_size,
             links::link_create,

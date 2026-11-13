@@ -1,6 +1,7 @@
 //! One job = one SteamCMD process downloading a batch of items for one app on one worker slot.
 //! Events stream to the frontend over a Channel; the frontend persists them.
 
+use super::appinfo::{self, AppEntry, BlockScanner};
 use super::install::{self, EXE};
 use super::parse::{self, GuardKind, Line};
 use super::pool::WorkerPool;
@@ -508,6 +509,142 @@ pub async fn steamcmd_install(
     } else {
         install::ensure_installed(manager.root(), &log).await
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum AppIndexEvent {
+    /// SteamCMD output outside the KeyValues blocks.
+    Log { line: String },
+    /// The package listed this many apps; names are fetched next.
+    Package { count: usize },
+    App { entry: AppEntry, done: usize, total: usize },
+}
+
+/// Runs SteamCMD in the base install, sending lines to `on_line` and handing each top-level
+/// KeyValues block to `on_block`. Lines inside blocks aren't forwarded (app info is large).
+async fn scan_blocks(
+    base: &Path,
+    args: &[&str],
+    on_line: &(dyn Fn(String) + Send + Sync),
+    on_block: &(dyn Fn(String, String) + Send + Sync),
+) -> Result<()> {
+    let scanner = Mutex::new(BlockScanner::default());
+    install::run_and_log(base, args, &|line| {
+        let mut scanner = scanner.lock().unwrap_or_else(|e| e.into_inner());
+        let was_in_block = scanner.in_block();
+        match scanner.push(&line) {
+            Some((key, block)) => {
+                drop(scanner);
+                on_block(key, block);
+            }
+            None if !was_in_block && !scanner.in_block() => on_line(line),
+            None => {}
+        }
+    })
+    .await?;
+    Ok(())
+}
+
+/// Lists the apps in Steam's anonymous dedicated-server package with their names.
+#[tauri::command]
+pub async fn steam_app_index(manager: State<'_, Arc<JobManager>>, on_event: Channel<AppIndexEvent>) -> Result<Vec<AppEntry>> {
+    let root = manager.root().to_path_buf();
+    if !install::is_installed(&root) {
+        return Err(Error::msg("Install SteamCMD first"));
+    }
+    // Uses the base install and worker copies cloned from it; keep installs out meanwhile.
+    let _installing = manager.install_lock.lock().await;
+    let base = install::base_dir(&root);
+    let send = |event: AppIndexEvent| {
+        let _ = on_event.send(event);
+    };
+    let log = |line: String| send(AppIndexEvent::Log { line });
+
+    let package = appinfo::ANONYMOUS_PACKAGE_ID.to_string();
+    let ids = Mutex::new(Vec::<u32>::new());
+    let args = ["+@NoPromptForPassword", "1", "+login", "anonymous", "+package_info_print", &package, "+quit"];
+    scan_blocks(&base, &args, &log, &|key, block| {
+        if key == package {
+            *ids.lock().unwrap_or_else(|e| e.into_inner()) = appinfo::package_app_ids(&block);
+        }
+    })
+    .await?;
+    let ids = ids.into_inner().unwrap_or_else(|e| e.into_inner());
+    if ids.is_empty() {
+        return Err(Error::msg(format!("SteamCMD printed no app list for package {package}")));
+    }
+    send(AppIndexEvent::Package { count: ids.len() });
+
+    // One SteamCMD session prints app info sequentially, so the ids are split across worker
+    // slots (each its own SteamCMD copy) and fetched in parallel.
+    let manager = manager.inner().clone();
+    let total = ids.len();
+    let workers = manager.pool.size().clamp(1, total);
+    let parts = ids.chunks(total.div_ceil(workers)).count();
+    let entries = Arc::new(Mutex::new(HashMap::<u32, AppEntry>::new()));
+    let mut tasks = tokio::task::JoinSet::new();
+    for part in ids.chunks(total.div_ceil(workers)).map(<[u32]>::to_vec) {
+        let (manager, entries, on_event) = (manager.clone(), entries.clone(), on_event.clone());
+        tasks.spawn(async move { app_info_part(&manager, &part, &entries, &on_event, total).await });
+    }
+    let mut failures = Vec::new();
+    while let Some(joined) = tasks.join_next().await {
+        if let Err(e) = joined.map_err(|e| Error::msg(e.to_string())).and_then(|r| r) {
+            log(format!("[app list] a worker failed: {e}"));
+            failures.push(e);
+        }
+    }
+    // A failed part only leaves its apps without names; fail only if nothing worked.
+    if failures.len() == parts {
+        return Err(failures.remove(0));
+    }
+
+    // Apps SteamCMD printed no info for are kept, just without a name.
+    let mut entries = std::mem::take(&mut *entries.lock().unwrap_or_else(|e| e.into_inner()));
+    Ok(ids
+        .iter()
+        .map(|&app_id| entries.remove(&app_id).unwrap_or(AppEntry { app_id, name: None, kind: None }))
+        .collect())
+}
+
+/// Prints app info for `part` (sorted ids) on one worker slot.
+async fn app_info_part(
+    manager: &Arc<JobManager>,
+    part: &[u32],
+    entries: &Mutex<HashMap<u32, AppEntry>>,
+    on_event: &Channel<AppIndexEvent>,
+    total: usize,
+) -> Result<()> {
+    let slot = manager.pool.acquire().await;
+    let dir = manager.pool.prepare(&slot).await?;
+    let send = |event: AppIndexEvent| {
+        let _ = on_event.send(event);
+    };
+    let prefix = format!("[worker {}]", slot.index);
+
+    let script = dir.join("app_index.txt");
+    tokio::fs::write(&script, appinfo::app_info_script(part)).await?;
+    let script_arg = script.to_string_lossy().into_owned();
+    let result = scan_blocks(
+        &dir,
+        &["+runscript", &script_arg],
+        &|line| send(AppIndexEvent::Log { line: format!("{prefix} {line}") }),
+        &|_, block| {
+            let Some(entry) = appinfo::app_entry(&block) else { return };
+            if part.binary_search(&entry.app_id).is_err() {
+                return;
+            }
+            let mut entries = entries.lock().unwrap_or_else(|e| e.into_inner());
+            entries.insert(entry.app_id, entry.clone());
+            let done = entries.len();
+            drop(entries);
+            send(AppIndexEvent::App { entry, done, total });
+        },
+    )
+    .await;
+    let _ = tokio::fs::remove_file(&script).await;
+    result
 }
 
 #[cfg(test)]

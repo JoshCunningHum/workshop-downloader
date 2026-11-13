@@ -95,7 +95,7 @@ pub fn command(dir: &Path) -> tokio::process::Command {
     cmd
 }
 
-async fn run_and_log(dir: &Path, args: &[&str], log: &(dyn Fn(String) + Send + Sync)) -> Result<Option<i32>> {
+pub async fn run_and_log(dir: &Path, args: &[&str], log: &(dyn Fn(String) + Send + Sync)) -> Result<Option<i32>> {
     let mut child = command(dir).args(args).spawn()?;
     let stdout = child.stdout.take().expect("piped");
     let stderr = child.stderr.take().expect("piped");

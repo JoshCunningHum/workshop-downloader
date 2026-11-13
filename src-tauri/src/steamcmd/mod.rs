@@ -1,3 +1,4 @@
+pub mod appinfo;
 pub mod install;
 pub mod job;
 pub mod parse;

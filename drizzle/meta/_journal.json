@@ -15,6 +15,13 @@
       "when": 1794563036054,
       "tag": "0001_goofy_shocker",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794589135874,
+      "tag": "0002_many_vargas",
+      "breakpoints": true
     }
   ]
 }

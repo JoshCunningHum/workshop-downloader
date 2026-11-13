@@ -101,6 +101,15 @@ export const steamAccounts = sqliteTable('steam_accounts', {
   lastLoginOk: integer('last_login_ok')
 })
 
+// Lookup list for the sidebar game selector: apps in Steam's anonymous dedicated-server
+// package (sub 17906), filled by the setup step via SteamCMD. Picking one creates an `apps` row.
+export const steamApps = sqliteTable('steam_apps', {
+  appId: integer('app_id').primaryKey({ autoIncrement: false }),
+  name: text('name'),
+  type: text('type'),
+  updatedAt: integer('updated_at').notNull()
+})
+
 export type AppRow = typeof apps.$inferSelect
 export type AdapterRow = typeof adapters.$inferSelect
 export type ItemRow = typeof workshopItems.$inferSelect
@@ -108,3 +117,4 @@ export type SnapshotRow = typeof snapshots.$inferSelect
 export type LinkRow = typeof links.$inferSelect
 export type JobRow = typeof jobs.$inferSelect
 export type AccountRow = typeof steamAccounts.$inferSelect
+export type SteamAppRow = typeof steamApps.$inferSelect
