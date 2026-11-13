@@ -3,7 +3,8 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
-    '@vueuse/nuxt'
+    '@vueuse/nuxt',
+    '@formkit/auto-animate/nuxt'
   ],
 
   // Tauri serves a static SPA; there is no Nuxt server at runtime.

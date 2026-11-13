@@ -19,6 +19,9 @@ const progress = computed(() => {
   return { bytes, total, percent: total ? Math.round(bytes / total * 100) : null }
 })
 
+// Red at 0%, yellow at 50%, green at 100%.
+const barColor = computed(() => `hsl(${(progress.value.percent ?? 0) * 1.2} 85% 45%)`)
+
 const COLORS = {
   queued: 'neutral',
   waiting: 'neutral',
@@ -69,14 +72,19 @@ const others = computed(() => props.job.itemIds.filter(id => id !== props.itemId
         </NuxtLink>
       </div>
       <div class="flex items-center gap-2">
-        <UProgress
+        <div
           v-if="status.state !== 'failed' && status.state !== 'cancelled'"
-          :model-value="status.state === 'downloading' && progress.percent === null ? null : (progress.percent ?? 0)"
-          :max="100"
-          :color="status.state === 'done' ? 'success' : 'primary'"
-          size="sm"
-          class="flex-1"
-        />
+          class="h-px flex-1 overflow-hidden bg-accented"
+          role="progressbar"
+          :aria-valuenow="progress.percent ?? 0"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
+          <div
+            class="h-full transition-[width,background-color] duration-500"
+            :style="{ width: `${progress.percent ?? 0}%`, backgroundColor: barColor }"
+          />
+        </div>
         <span
           v-if="status.reason"
           class="min-w-0 flex-1 truncate text-xs text-error"

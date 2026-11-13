@@ -27,10 +27,20 @@ const rows = computed<Row[]>(() => jobsStore.jobs.value.flatMap(job => job.itemI
   state: itemState(job, itemId).state
 }))))
 
+// Share of an item downloaded so far (0..1); size falls back to the Web API's file size.
+function ratio(row: Row) {
+  const p = row.job.progress[row.itemId]
+  const total = p?.total || items.value[row.itemId]?.fileSize || 0
+  return total && p ? Math.min(1, p.bytes / total) : 0
+}
+
+// Furthest along first; ties: downloading, waiting, queued, then oldest first.
 const ACTIVE_ORDER: ItemState[] = ['downloading', 'waiting', 'queued']
 const active = computed(() => rows.value
   .filter(r => ACTIVE_ORDER.includes(r.state))
-  .sort((a, b) => ACTIVE_ORDER.indexOf(a.state) - ACTIVE_ORDER.indexOf(b.state) || a.job.createdAt - b.job.createdAt))
+  .sort((a, b) => ratio(b) - ratio(a)
+    || ACTIVE_ORDER.indexOf(a.state) - ACTIVE_ORDER.indexOf(b.state)
+    || a.job.createdAt - b.job.createdAt))
 // Items finished inside a still-running process sort to the top.
 const history = computed(() => rows.value
   .filter(r => !ACTIVE_ORDER.includes(r.state))
@@ -115,7 +125,7 @@ watch(() => logJob.value?.log.length, async () => {
           description="Queued and downloading items show up here."
         />
         <ul
-          v-else
+          v-auto-animate
           class="divide-y divide-default"
         >
           <DownloadItem
@@ -145,7 +155,10 @@ watch(() => logJob.value?.log.length, async () => {
             @click="jobsStore.clearFinished()"
           />
         </div>
-        <ul class="divide-y divide-default">
+        <ul
+          v-auto-animate
+          class="divide-y divide-default"
+        >
           <DownloadItem
             v-for="row in history"
             :key="row.key"
