@@ -26,6 +26,8 @@ export interface LiveJob {
   /** Sum of the items' Web API file sizes. */
   bytesTotal: number
   itemErrors: Record<string, string>
+  /** Items that finished downloading. */
+  itemsDone: Record<string, true>
   log: string[]
   error: string | null
   guard: GuardKind | null
@@ -57,6 +59,7 @@ export function useJobs() {
     await db().update(jobs).set({ status: 'interrupted', finishedAt: Date.now() }).where(inArray(jobs.status, ACTIVE))
     const rows = await db().select().from(jobs).orderBy(desc(jobs.createdAt)).limit(50)
     state.jobs.push(...rows.map(row => ({
+      ...historyItems(row.status, row.itemIds, row.error),
       id: row.id,
       appId: row.appId,
       itemIds: row.itemIds,
@@ -65,7 +68,6 @@ export function useJobs() {
       slot: row.workerSlot,
       progress: {},
       bytesTotal: row.bytesTotal,
-      itemErrors: {},
       log: row.logTail ? row.logTail.split('\n') : [],
       error: row.error,
       guard: null,
@@ -106,7 +108,7 @@ export function useJobs() {
       createdAt
     })
     state.jobs.unshift({
-      id, appId, itemIds, accountId, status: 'queued', slot: null, progress: {}, bytesTotal, itemErrors: {},
+      id, appId, itemIds, accountId, status: 'queued', slot: null, progress: {}, bytesTotal, itemErrors: {}, itemsDone: {},
       log: [], error: null, guard: null, createdAt, startedAt: null, finishedAt: null
     })
     const job = state.jobs[0]!
@@ -159,6 +161,7 @@ export function useJobs() {
         break
       case 'itemDone':
         job.progress[event.itemId] = { bytes: event.sizeBytes, total: event.sizeBytes }
+        job.itemsDone[event.itemId] = true
         await onItemDone(job, event)
         break
       case 'itemFailed':
@@ -234,6 +237,11 @@ export function useJobs() {
     return enqueue(job.appId, failed, { accountId: job.accountId })
   }
 
+  /** Re-queues a single item of a job. */
+  function retryItem(job: LiveJob, itemId: string) {
+    return enqueue(job.appId, [itemId], { accountId: job.accountId })
+  }
+
   async function clearFinished() {
     const finished = state.jobs.filter(j => !ACTIVE.includes(j.status))
     if (finished.length) await db().delete(jobs).where(inArray(jobs.id, finished.map(j => j.id)))
@@ -243,7 +251,48 @@ export function useJobs() {
   const active = computed(() => state.jobs.filter(j => ACTIVE.includes(j.status)))
   const busyItemIds = computed(() => new Set(active.value.flatMap(j => j.itemIds)))
 
-  return { jobs: computed(() => state.jobs), active, busyItemIds, loadHistory, enqueue, cancel, submitGuardCode, retry, clearFinished }
+  return { jobs: computed(() => state.jobs), active, busyItemIds, loadHistory, enqueue, cancel, submitGuardCode, retry, retryItem, clearFinished }
+}
+
+/**
+ * Per-item results of a job loaded from history. A partial job stored its failures as
+ * "<itemId>: <reason>" lines in `error`; the other items of a done/partial job finished.
+ */
+function historyItems(status: JobStatus, itemIds: string[], error: string | null) {
+  const itemErrors: Record<string, string> = {}
+  const itemsDone: Record<string, true> = {}
+  if (status === 'partial') {
+    for (const line of (error ?? '').split('\n')) {
+      const m = line.match(/^(\d+): (.*)$/)
+      if (m && itemIds.includes(m[1]!)) itemErrors[m[1]!] = m[2]!
+    }
+  }
+  if (status === 'done' || status === 'partial') {
+    for (const id of itemIds) if (!itemErrors[id]) itemsDone[id] = true
+  }
+  return { itemErrors, itemsDone }
+}
+
+export type ItemState = 'queued' | 'waiting' | 'downloading' | 'done' | 'failed' | 'cancelled' | 'needs_guard' | 'interrupted'
+
+/** Where one item of a job stands, and why when it didn't finish. */
+export function itemState(job: LiveJob, itemId: string): { state: ItemState, reason: string | null } {
+  if (job.itemErrors[itemId]) return { state: 'failed', reason: job.itemErrors[itemId]! }
+  if (job.itemsDone[itemId]) return { state: 'done', reason: null }
+  switch (job.status) {
+    case 'queued':
+      return { state: 'queued', reason: null }
+    case 'running':
+      // SteamCMD fetches a process's items one after another.
+      return { state: job.progress[itemId] ? 'downloading' : 'waiting', reason: null }
+    case 'done':
+      return { state: 'done', reason: null }
+    case 'partial':
+    case 'failed':
+      return { state: 'failed', reason: job.error }
+    default:
+      return { state: job.status, reason: job.error }
+  }
 }
 
 export function jobProgress(job: LiveJob) {

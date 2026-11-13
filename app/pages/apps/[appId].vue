@@ -244,10 +244,8 @@ const save = () => run('Saving', async () => {
   toast.add({ title: 'Saved', color: 'success' })
 })
 
-const tabs = [
-  { label: 'Items', slot: 'items' as const, icon: 'i-lucide-list' },
-  { label: 'Settings', slot: 'settings' as const, icon: 'i-lucide-settings' }
-]
+// The item list, or the game's settings (opened from the gear button).
+const view = ref<'items' | 'settings'>('items')
 </script>
 
 <template>
@@ -339,282 +337,303 @@ const tabs = [
               :loading="busy"
               @click="verifyLinks"
             />
+            <UTooltip text="Game settings">
+              <UButton
+                size="xs"
+                icon="i-lucide-settings"
+                color="neutral"
+                :variant="view === 'settings' ? 'soft' : 'outline'"
+                aria-label="Game settings"
+                @click="view = 'settings'"
+              />
+            </UTooltip>
           </div>
         </div>
 
-        <UTabs :items="tabs">
-          <template #items>
-            <div class="mb-3 flex flex-wrap gap-2">
+        <template v-if="view === 'items'">
+          <div class="mb-3 flex flex-wrap gap-2">
+            <UButton
+              size="sm"
+              icon="i-lucide-download"
+              label="Update outdated"
+              :disabled="!rows.some(r => r.updateAvailable)"
+              :loading="busy"
+              @click="download(rows.filter(r => r.updateAvailable).map(r => r.item.id))"
+            />
+            <template v-if="selected.size">
               <UButton
                 size="sm"
+                color="neutral"
+                variant="outline"
                 icon="i-lucide-download"
-                label="Update outdated"
-                :disabled="!rows.some(r => r.updateAvailable)"
-                :loading="busy"
-                @click="download(rows.filter(r => r.updateAvailable).map(r => r.item.id))"
-              />
-              <template v-if="selected.size">
-                <UButton
-                  size="sm"
-                  color="neutral"
-                  variant="outline"
-                  icon="i-lucide-download"
-                  :label="`Download ${selected.size}`"
-                  @click="download([...selected])"
-                />
-                <UButton
-                  size="sm"
-                  color="neutral"
-                  variant="outline"
-                  icon="i-lucide-link"
-                  label="Link"
-                  @click="linkRows(selectedRows())"
-                />
-                <UButton
-                  size="sm"
-                  color="neutral"
-                  variant="outline"
-                  icon="i-lucide-unlink"
-                  label="Unlink"
-                  @click="unlinkRows(selectedRows())"
-                />
-                <UButton
-                  size="sm"
-                  color="error"
-                  variant="outline"
-                  icon="i-lucide-trash-2"
-                  label="Remove"
-                  @click="removeRows(selectedRows())"
-                />
-              </template>
-            </div>
-
-            <UTable
-              :data="rows"
-              :columns="columns"
-            >
-              <template #select-header>
-                <UCheckbox
-                  :model-value="allSelected"
-                  @update:model-value="toggleAll"
-                />
-              </template>
-              <template #select-cell="{ row }">
-                <UCheckbox
-                  :model-value="selected.has(row.original.item.id)"
-                  @update:model-value="toggle(row.original.item.id, $event)"
-                />
-              </template>
-              <template #title-cell="{ row }">
-                <NuxtLink
-                  :to="`/items/${row.original.item.id}`"
-                  class="font-medium hover:underline"
-                >
-                  {{ row.original.item.title || row.original.item.id }}
-                </NuxtLink>
-                <div class="flex gap-1">
-                  <UBadge
-                    v-if="row.original.updateAvailable"
-                    size="sm"
-                    color="warning"
-                    variant="subtle"
-                  >
-                    {{ row.original.latest ? 'update available' : 'not downloaded' }}
-                  </UBadge>
-                  <UBadge
-                    v-if="jobsStore.busyItemIds.value.has(row.original.item.id)"
-                    size="sm"
-                    color="primary"
-                    variant="subtle"
-                  >
-                    downloading
-                  </UBadge>
-                </div>
-              </template>
-              <template #versions-cell="{ row }">
-                <span>{{ row.original.active?.itemVersions.join(', ') || '—' }}</span>
-                <UBadge
-                  v-if="row.original.compatible !== null"
-                  class="ms-2"
-                  size="sm"
-                  :color="row.original.compatible ? 'success' : 'error'"
-                  variant="subtle"
-                >
-                  {{ row.original.compatible ? 'fits' : 'mismatch' }}
-                </UBadge>
-              </template>
-              <template #active-cell="{ row }">
-                <span v-if="row.original.active">{{ formatTime(row.original.active.timeUpdated) }}</span>
-                <span
-                  v-else
-                  class="text-muted"
-                >—</span>
-                <span class="text-xs text-muted"> ({{ row.original.count }} kept)</span>
-              </template>
-              <template #link-cell="{ row }">
-                <UBadge
-                  v-if="row.original.link"
-                  :color="row.original.link.status === 'ok' ? 'success' : 'error'"
-                  variant="subtle"
-                >
-                  {{ row.original.link.status.replace('_', ' ') }}
-                </UBadge>
-                <span
-                  v-else
-                  class="text-muted"
-                >not linked</span>
-              </template>
-              <template #actions-cell="{ row }">
-                <div class="flex justify-end gap-1">
-                  <UButton
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    icon="i-lucide-download"
-                    title="Download latest"
-                    @click="download([row.original.item.id])"
-                  />
-                  <UButton
-                    v-if="row.original.link"
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    icon="i-lucide-unlink"
-                    title="Unlink"
-                    @click="unlinkRows([row.original])"
-                  />
-                  <UButton
-                    v-else-if="row.original.latest"
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    icon="i-lucide-link"
-                    title="Link"
-                    @click="linkRows([row.original])"
-                  />
-                </div>
-              </template>
-            </UTable>
-          </template>
-
-          <template #settings>
-            <form
-              v-if="form"
-              class="max-w-2xl space-y-4"
-              @submit.prevent="saveSettings"
-            >
-              <UFormField label="Name">
-                <UInput
-                  v-model="form.name"
-                  class="w-full"
-                />
-              </UFormField>
-              <UFormField
-                label="Game install folder"
-                description="Used for {install} in adapter templates and game version detection."
-              >
-                <div class="flex gap-2">
-                  <UInput
-                    v-model="form.installPath"
-                    class="flex-1"
-                  />
-                  <UButton
-                    color="neutral"
-                    variant="outline"
-                    label="Browse"
-                    @click="browse('installPath')"
-                  />
-                  <UButton
-                    color="neutral"
-                    variant="outline"
-                    label="Find in Steam"
-                    @click="detectInstall"
-                  />
-                </div>
-              </UFormField>
-              <UFormField
-                label="Mods folder"
-                :description="`Where links are created. Empty uses the adapter's template${data?.adapter.modsPath ? ` (${data.adapter.modsPath})` : ''}.`"
-              >
-                <div class="flex gap-2">
-                  <UInput
-                    v-model="form.modsPath"
-                    class="flex-1"
-                    :placeholder="data?.adapter.modsPath"
-                  />
-                  <UButton
-                    color="neutral"
-                    variant="outline"
-                    label="Browse"
-                    @click="browse('modsPath')"
-                  />
-                  <UButton
-                    color="neutral"
-                    variant="outline"
-                    icon="i-lucide-folder-input"
-                    label="Import existing…"
-                    :disabled="form.modsPath !== (app.modsPath ?? '')"
-                    :title="form.modsPath !== (app.modsPath ?? '') ? 'Save the new folder first' : undefined"
-                    @click="importOpen = true"
-                  />
-                </div>
-              </UFormField>
-              <UFormField
-                label="Link type"
-                description="Windows only; the macOS dev build always uses symlinks."
-              >
-                <USelect
-                  v-model="form.linkMode"
-                  :items="linkModes"
-                  class="w-72"
-                />
-              </UFormField>
-              <UFormField label="Adapter">
-                <USelect
-                  :model-value="form.adapterId ?? AUTO_ADAPTER"
-                  :items="adapterItems"
-                  class="w-72"
-                  @update:model-value="form.adapterId = $event === AUTO_ADAPTER ? null : $event"
-                />
-              </UFormField>
-              <UFormField
-                label="Manual game version"
-                description="Overrides the detected version."
-              >
-                <UInput v-model="form.manualGameVersion" />
-              </UFormField>
-              <UFormField
-                label="Steam account"
-                description="Some workshop items need an account that owns the game."
-              >
-                <USelect
-                  :model-value="form.accountId ?? 0"
-                  :items="accountItems"
-                  class="w-72"
-                  @update:model-value="form.accountId = $event || null"
-                />
-              </UFormField>
-              <UFormField
-                label="Snapshots to keep per item"
-                description="Older ones are deleted after a new download. Pinned and active snapshots are always kept. 0 keeps everything."
-              >
-                <UInputNumber
-                  v-model="form.retention"
-                  :min="0"
-                />
-              </UFormField>
-              <USwitch
-                v-model="form.autoUpdate"
-                label="Download updates automatically when the timed update check finds them"
+                :label="`Download ${selected.size}`"
+                @click="download([...selected])"
               />
               <UButton
-                type="submit"
-                label="Save"
-                :loading="busy"
+                size="sm"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-link"
+                label="Link"
+                @click="linkRows(selectedRows())"
               />
-            </form>
-          </template>
-        </UTabs>
+              <UButton
+                size="sm"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-unlink"
+                label="Unlink"
+                @click="unlinkRows(selectedRows())"
+              />
+              <UButton
+                size="sm"
+                color="error"
+                variant="outline"
+                icon="i-lucide-trash-2"
+                label="Remove"
+                @click="removeRows(selectedRows())"
+              />
+            </template>
+          </div>
+
+          <UTable
+            :data="rows"
+            :columns="columns"
+          >
+            <template #select-header>
+              <UCheckbox
+                :model-value="allSelected"
+                @update:model-value="toggleAll"
+              />
+            </template>
+            <template #select-cell="{ row }">
+              <UCheckbox
+                :model-value="selected.has(row.original.item.id)"
+                @update:model-value="toggle(row.original.item.id, $event)"
+              />
+            </template>
+            <template #title-cell="{ row }">
+              <NuxtLink
+                :to="`/items/${row.original.item.id}`"
+                class="font-medium hover:underline"
+              >
+                {{ row.original.item.title || row.original.item.id }}
+              </NuxtLink>
+              <div class="flex gap-1">
+                <UBadge
+                  v-if="row.original.updateAvailable"
+                  size="sm"
+                  color="warning"
+                  variant="subtle"
+                >
+                  {{ row.original.latest ? 'update available' : 'not downloaded' }}
+                </UBadge>
+                <UBadge
+                  v-if="jobsStore.busyItemIds.value.has(row.original.item.id)"
+                  size="sm"
+                  color="primary"
+                  variant="subtle"
+                >
+                  downloading
+                </UBadge>
+              </div>
+            </template>
+            <template #versions-cell="{ row }">
+              <span>{{ row.original.active?.itemVersions.join(', ') || '—' }}</span>
+              <UBadge
+                v-if="row.original.compatible !== null"
+                class="ms-2"
+                size="sm"
+                :color="row.original.compatible ? 'success' : 'error'"
+                variant="subtle"
+              >
+                {{ row.original.compatible ? 'fits' : 'mismatch' }}
+              </UBadge>
+            </template>
+            <template #active-cell="{ row }">
+              <span v-if="row.original.active">{{ formatTime(row.original.active.timeUpdated) }}</span>
+              <span
+                v-else
+                class="text-muted"
+              >—</span>
+              <span class="text-xs text-muted"> ({{ row.original.count }} kept)</span>
+            </template>
+            <template #link-cell="{ row }">
+              <UBadge
+                v-if="row.original.link"
+                :color="row.original.link.status === 'ok' ? 'success' : 'error'"
+                variant="subtle"
+              >
+                {{ row.original.link.status.replace('_', ' ') }}
+              </UBadge>
+              <span
+                v-else
+                class="text-muted"
+              >not linked</span>
+            </template>
+            <template #actions-cell="{ row }">
+              <div class="flex justify-end gap-1">
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-download"
+                  title="Download latest"
+                  @click="download([row.original.item.id])"
+                />
+                <UButton
+                  v-if="row.original.link"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-unlink"
+                  title="Unlink"
+                  @click="unlinkRows([row.original])"
+                />
+                <UButton
+                  v-else-if="row.original.latest"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-link"
+                  title="Link"
+                  @click="linkRows([row.original])"
+                />
+              </div>
+            </template>
+          </UTable>
+        </template>
+
+        <template v-else>
+          <div class="flex items-center gap-2">
+            <UButton
+              size="sm"
+              icon="i-lucide-arrow-left"
+              color="neutral"
+              variant="ghost"
+              aria-label="Back to items"
+              @click="view = 'items'"
+            />
+            <h2 class="font-semibold">
+              Settings
+            </h2>
+          </div>
+          <form
+            v-if="form"
+            class="max-w-2xl space-y-4"
+            @submit.prevent="saveSettings"
+          >
+            <UFormField label="Name">
+              <UInput
+                v-model="form.name"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField
+              label="Game install folder"
+              description="Used for {install} in adapter templates and game version detection."
+            >
+              <div class="flex gap-2">
+                <UInput
+                  v-model="form.installPath"
+                  class="flex-1"
+                />
+                <UButton
+                  color="neutral"
+                  variant="outline"
+                  label="Browse"
+                  @click="browse('installPath')"
+                />
+                <UButton
+                  color="neutral"
+                  variant="outline"
+                  label="Find in Steam"
+                  @click="detectInstall"
+                />
+              </div>
+            </UFormField>
+            <UFormField
+              label="Mods folder"
+              :description="`Where links are created. Empty uses the adapter's template${data?.adapter.modsPath ? ` (${data.adapter.modsPath})` : ''}.`"
+            >
+              <div class="flex gap-2">
+                <UInput
+                  v-model="form.modsPath"
+                  class="flex-1"
+                  :placeholder="data?.adapter.modsPath"
+                />
+                <UButton
+                  color="neutral"
+                  variant="outline"
+                  label="Browse"
+                  @click="browse('modsPath')"
+                />
+                <UButton
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-folder-input"
+                  label="Import existing…"
+                  :disabled="form.modsPath !== (app.modsPath ?? '')"
+                  :title="form.modsPath !== (app.modsPath ?? '') ? 'Save the new folder first' : undefined"
+                  @click="importOpen = true"
+                />
+              </div>
+            </UFormField>
+            <UFormField
+              label="Link type"
+              description="Windows only; the macOS dev build always uses symlinks."
+            >
+              <USelect
+                v-model="form.linkMode"
+                :items="linkModes"
+                class="w-72"
+              />
+            </UFormField>
+            <UFormField label="Adapter">
+              <USelect
+                :model-value="form.adapterId ?? AUTO_ADAPTER"
+                :items="adapterItems"
+                class="w-72"
+                @update:model-value="form.adapterId = $event === AUTO_ADAPTER ? null : $event"
+              />
+            </UFormField>
+            <UFormField
+              label="Manual game version"
+              description="Overrides the detected version."
+            >
+              <UInput v-model="form.manualGameVersion" />
+            </UFormField>
+            <UFormField
+              label="Steam account"
+              description="Some workshop items need an account that owns the game."
+            >
+              <USelect
+                :model-value="form.accountId ?? 0"
+                :items="accountItems"
+                class="w-72"
+                @update:model-value="form.accountId = $event || null"
+              />
+            </UFormField>
+            <UFormField
+              label="Snapshots to keep per item"
+              description="Older ones are deleted after a new download. Pinned and active snapshots are always kept. 0 keeps everything."
+            >
+              <UInputNumber
+                v-model="form.retention"
+                :min="0"
+              />
+            </UFormField>
+            <USwitch
+              v-model="form.autoUpdate"
+              label="Download updates automatically when the timed update check finds them"
+            />
+            <UButton
+              type="submit"
+              label="Save"
+              :loading="busy"
+            />
+          </form>
+        </template>
 
         <ModsImportDialog
           v-model:open="importOpen"

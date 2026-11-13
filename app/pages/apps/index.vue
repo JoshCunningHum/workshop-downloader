@@ -70,56 +70,64 @@ async function checkAll() {
         :actions="[{ label: 'Add items', to: '/' }]"
       />
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <UPageCard
+        <NuxtLink
           v-for="app in apps"
           :key="app.appId"
           :to="`/apps/${app.appId}`"
-          :title="app.name ?? `App ${app.appId}`"
-          :description="`AppID ${app.appId} · ${app.items} item(s)`"
-          :ui="{ header: 'mb-3' }"
+          class="flex overflow-hidden rounded-lg border border-default bg-default transition-colors hover:bg-elevated/50"
         >
-          <template #header>
-            <img
-              v-if="app.store?.headerImage"
-              :src="app.store.headerImage"
-              alt=""
-              class="aspect-460/215 w-full rounded-md object-cover"
-              loading="lazy"
-            >
-            <div
-              v-else
-              class="flex aspect-460/215 w-full items-center justify-center rounded-md bg-elevated"
-            >
-              <UIcon
-                name="i-lucide-gamepad-2"
-                class="size-10 text-dimmed"
-              />
-            </div>
-          </template>
-          <div class="flex flex-wrap gap-1">
-            <UBadge
-              v-if="updates.outdated.value[app.appId]?.length"
-              color="warning"
-              variant="subtle"
-            >
-              {{ updates.outdated.value[app.appId]!.length }} update(s)
-            </UBadge>
-            <UBadge
-              v-if="app.manualGameVersion || app.detectedGameVersion"
-              color="neutral"
-              variant="subtle"
-            >
-              game {{ app.manualGameVersion || app.detectedGameVersion }}
-            </UBadge>
-            <UBadge
-              v-if="!app.installPath"
-              color="neutral"
-              variant="outline"
-            >
-              install folder unknown
-            </UBadge>
+          <img
+            v-if="app.store?.headerImage"
+            :src="app.store.headerImage"
+            alt=""
+            class="aspect-460/215 w-44 shrink-0 object-cover"
+            loading="lazy"
+          >
+          <div
+            v-else
+            class="flex aspect-460/215 w-44 shrink-0 items-center justify-center bg-elevated"
+          >
+            <UIcon
+              name="i-lucide-gamepad-2"
+              class="size-8 text-dimmed"
+            />
           </div>
-        </UPageCard>
+
+          <div class="min-w-0 flex-1 space-y-1 p-3">
+            <p class="truncate font-medium text-highlighted">
+              {{ app.name ?? `App ${app.appId}` }}
+            </p>
+            <p class="text-xs text-muted">
+              AppID {{ app.appId }} · {{ app.items }} item(s)
+            </p>
+            <div class="flex flex-wrap gap-1">
+              <UBadge
+                v-if="updates.outdated.value[app.appId]?.length"
+                size="sm"
+                color="warning"
+                variant="subtle"
+              >
+                {{ updates.outdated.value[app.appId]!.length }} update(s)
+              </UBadge>
+              <UBadge
+                v-if="app.manualGameVersion || app.detectedGameVersion"
+                size="sm"
+                color="neutral"
+                variant="subtle"
+              >
+                game {{ app.manualGameVersion || app.detectedGameVersion }}
+              </UBadge>
+              <UBadge
+                v-if="!app.installPath"
+                size="sm"
+                color="neutral"
+                variant="outline"
+              >
+                install folder unknown
+              </UBadge>
+            </div>
+          </div>
+        </NuxtLink>
       </div>
     </template>
   </UDashboardPanel>
