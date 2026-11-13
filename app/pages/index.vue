@@ -23,27 +23,8 @@ const workers = computed(() => Array.from({ length: settings.value.concurrency }
 
 <template>
   <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar title="Downloads">
-        <template #right>
-          <UButton
-            to="/add"
-            icon="i-lucide-plus"
-            label="Add items"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
-
     <template #body>
-      <UAlert
-        v-if="!settings.libraryPath"
-        color="warning"
-        variant="subtle"
-        title="No library folder yet"
-        description="Choose where snapshots are stored before downloading."
-        :actions="[{ label: 'Open settings', to: '/settings' }]"
-      />
+      <WorkshopLinkSection />
 
       <section>
         <h2 class="mb-2 text-sm font-semibold text-muted">

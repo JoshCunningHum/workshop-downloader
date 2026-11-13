@@ -49,10 +49,6 @@ onBeforeUnmount(() => {
 
 <template>
   <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar title="Filesystem watcher test" />
-    </template>
-
     <template #body>
       <div class="max-w-2xl space-y-4">
         <div class="flex gap-2">

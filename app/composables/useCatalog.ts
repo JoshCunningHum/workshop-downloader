@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { apps, snapshots, workshopItems, type AppRow, type ItemRow } from '~/db/schema'
-import type { ItemDetails } from './useSteamApi'
+import type { InstalledGame, ItemDetails } from './useSteamApi'
 
 // Apps (games) and workshop items: creating them from Web API details, and update checks.
 export function useCatalog() {
@@ -31,6 +31,19 @@ export function useCatalog() {
       createdAt: Date.now()
     }).onConflictDoNothing()
     return (await getApp(appId))!
+  }
+
+  /** Creates app rows for games found in the local Steam libraries; existing rows are left alone. */
+  async function importInstalledGames(games: InstalledGame[]) {
+    const now = Date.now()
+    for (const game of games) {
+      await db().insert(apps).values({
+        appId: game.appId,
+        name: game.name,
+        installPath: game.installPath,
+        createdAt: now
+      }).onConflictDoNothing()
+    }
   }
 
   async function upsertItems(details: ItemDetails[]) {
@@ -102,5 +115,5 @@ export function useCatalog() {
     return db().select().from(workshopItems).where(and(eq(workshopItems.appId, appId), inArray(workshopItems.id, ids)))
   }
 
-  return { listApps, getApp, updateApp, ensureApp, upsertItems, listItems, getItem, updateItem, latestSnapshotTimes, checkUpdates, removeItem, itemsByIds, itemsForApp }
+  return { listApps, getApp, updateApp, ensureApp, importInstalledGames, upsertItems, listItems, getItem, updateItem, latestSnapshotTimes, checkUpdates, removeItem, itemsByIds, itemsForApp }
 }

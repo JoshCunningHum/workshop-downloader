@@ -2,6 +2,8 @@ import { invoke } from '@tauri-apps/api/core'
 import { settings as settingsTable } from '~/db/schema'
 
 export interface AppSettings {
+  /** Steam install folder; detected or picked during setup. */
+  steamPath: string | null
   /** Where snapshots live. Must be on the same drive as the game for junctions to work well. */
   libraryPath: string | null
   /** Parallel SteamCMD workers. */
@@ -14,6 +16,7 @@ export interface AppSettings {
 }
 
 export const defaultSettings: AppSettings = {
+  steamPath: null,
   libraryPath: null,
   concurrency: 3,
   batchSize: 10,

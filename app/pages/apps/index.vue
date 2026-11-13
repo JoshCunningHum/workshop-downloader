@@ -28,28 +28,30 @@ async function checkAll() {
 
 <template>
   <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar title="Games">
-        <template #right>
-          <UButton
-            icon="i-lucide-refresh-cw"
-            label="Check for updates"
-            color="neutral"
-            variant="outline"
-            :loading="updates.checking.value"
-            @click="checkAll"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
-
     <template #body>
+      <div
+        v-if="apps?.length"
+        class="flex items-center gap-2 text-sm text-muted"
+      >
+        {{ apps.length }} game(s)
+        <UButton
+          class="ms-auto"
+          size="xs"
+          icon="i-lucide-refresh-cw"
+          label="Check for updates"
+          color="neutral"
+          variant="outline"
+          :loading="updates.checking.value"
+          @click="checkAll"
+        />
+      </div>
+
       <UEmpty
         v-if="!apps?.length"
         icon="i-lucide-gamepad-2"
         title="No games yet"
-        description="Games appear here once you add workshop items for them."
-        :actions="[{ label: 'Add items', to: '/add' }]"
+        description="Games appear here once you add workshop items for them, or pick one in the sidebar."
+        :actions="[{ label: 'Add items', to: '/' }]"
       />
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <UPageCard

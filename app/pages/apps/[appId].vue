@@ -168,8 +168,10 @@ watch(app, (value) => {
     : null
 }, { immediate: true })
 
+// USelect (Reka UI) rejects '' as an item value, so "Automatic" (adapterId null) uses a sentinel.
+const AUTO_ADAPTER = '__auto__'
 const adapterItems = computed(() => [
-  { label: `Automatic (${data.value?.adapter.name ?? '—'})`, value: '' },
+  { label: `Automatic (${data.value?.adapter.name ?? '—'})`, value: AUTO_ADAPTER },
   ...(data.value?.adapters ?? []).map(a => ({ label: a.name, value: a.id }))
 ])
 const accountItems = computed(() => [
@@ -220,38 +222,9 @@ const tabs = [
 
 <template>
   <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar :title="app?.name ?? `App ${appId}`">
-        <template #leading>
-          <UButton
-            to="/apps"
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-          />
-        </template>
-        <template #right>
-          <UButton
-            icon="i-lucide-refresh-cw"
-            label="Check updates"
-            color="neutral"
-            variant="outline"
-            :loading="busy"
-            @click="checkUpdates"
-          />
-          <UButton
-            icon="i-lucide-link"
-            label="Verify links"
-            color="neutral"
-            variant="outline"
-            :loading="busy"
-            @click="verifyLinks"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
-
     <template #body>
+      <WorkshopLinkSection @queued="refresh" />
+
       <UEmpty
         v-if="!app"
         title="Unknown game"
@@ -280,6 +253,26 @@ const tabs = [
             @click="detectGameVersion"
           />
           <span class="text-muted">· adapter: {{ data?.adapter.name }}</span>
+          <div class="ms-auto flex flex-wrap gap-2">
+            <UButton
+              size="xs"
+              icon="i-lucide-refresh-cw"
+              label="Check updates"
+              color="neutral"
+              variant="outline"
+              :loading="busy"
+              @click="checkUpdates"
+            />
+            <UButton
+              size="xs"
+              icon="i-lucide-link"
+              label="Verify links"
+              color="neutral"
+              variant="outline"
+              :loading="busy"
+              @click="verifyLinks"
+            />
+          </div>
         </div>
 
         <UTabs :items="tabs">
@@ -502,10 +495,10 @@ const tabs = [
               </UFormField>
               <UFormField label="Adapter">
                 <USelect
-                  :model-value="form.adapterId ?? ''"
+                  :model-value="form.adapterId ?? AUTO_ADAPTER"
                   :items="adapterItems"
                   class="w-72"
-                  @update:model-value="form.adapterId = $event || null"
+                  @update:model-value="form.adapterId = $event === AUTO_ADAPTER ? null : $event"
                 />
               </UFormField>
               <UFormField

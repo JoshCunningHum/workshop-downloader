@@ -5,23 +5,20 @@ const { data: adapters } = useAsyncData('adapters', () => adaptersApi.list())
 
 <template>
   <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar title="Adapters">
-        <template #right>
-          <UButton
-            to="/adapters/new"
-            icon="i-lucide-plus"
-            label="New adapter"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
-
     <template #body>
-      <p class="text-sm text-muted">
-        Adapters tell the app where a game's mods folder is, and how to read the installed game version
-        and the game versions each workshop item supports.
-      </p>
+      <div class="flex items-start gap-3">
+        <p class="text-sm text-muted">
+          Adapters tell the app where a game's mods folder is, and how to read the installed game version
+          and the game versions each workshop item supports.
+        </p>
+        <UButton
+          class="ms-auto shrink-0"
+          size="xs"
+          to="/adapters/new"
+          icon="i-lucide-plus"
+          label="New adapter"
+        />
+      </div>
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <UPageCard
           v-for="adapter in adapters"

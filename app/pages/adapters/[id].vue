@@ -97,44 +97,6 @@ async function testGame() {
 
 <template>
   <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar :title="isNew ? 'New adapter' : def.name">
-        <template #leading>
-          <UButton
-            to="/adapters"
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-          />
-        </template>
-        <template #right>
-          <UButton
-            v-if="!isNew"
-            :to="`/adapters/new?from=${def.id}`"
-            icon="i-lucide-copy"
-            label="Duplicate"
-            color="neutral"
-            variant="outline"
-          />
-          <UButton
-            v-if="!isNew && !builtin"
-            icon="i-lucide-trash-2"
-            label="Delete"
-            color="error"
-            variant="outline"
-            @click="remove"
-          />
-          <UButton
-            v-if="!builtin"
-            icon="i-lucide-save"
-            label="Save"
-            :disabled="errors.length > 0"
-            @click="save"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
-
     <template #body>
       <UAlert
         v-if="builtin"
@@ -231,6 +193,32 @@ async function testGame() {
           </ul>
         </template>
       </UAlert>
+
+      <div class="flex max-w-4xl flex-wrap gap-2">
+        <UButton
+          v-if="!builtin"
+          icon="i-lucide-save"
+          label="Save"
+          :disabled="errors.length > 0"
+          @click="save"
+        />
+        <UButton
+          v-if="!isNew"
+          :to="`/adapters/new?from=${def.id}`"
+          icon="i-lucide-copy"
+          label="Duplicate"
+          color="neutral"
+          variant="outline"
+        />
+        <UButton
+          v-if="!isNew && !builtin"
+          icon="i-lucide-trash-2"
+          label="Delete"
+          color="error"
+          variant="outline"
+          @click="remove"
+        />
+      </div>
 
       <UCard class="max-w-4xl">
         <template #header>

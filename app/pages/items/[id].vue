@@ -52,27 +52,6 @@ const setAutoUpdate = (on: boolean) => run('Saving', () => catalog.updateItem(id
 
 <template>
   <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar :title="data?.item.title || id">
-        <template #leading>
-          <UButton
-            :to="data ? `/apps/${data.item.appId}` : '/apps'"
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-          />
-        </template>
-        <template #right>
-          <UButton
-            icon="i-lucide-download"
-            :label="downloading ? 'Downloading…' : 'Download latest'"
-            :disabled="downloading || !data"
-            @click="download"
-          />
-        </template>
-      </UDashboardNavbar>
-    </template>
-
     <template #body>
       <UEmpty
         v-if="!data"
@@ -88,9 +67,16 @@ const setAutoUpdate = (on: boolean) => run('Saving', () => catalog.updateItem(id
             class="size-28 rounded object-cover"
           >
           <div class="space-y-1 text-sm">
+            <p class="text-base font-semibold">
+              {{ data.item.title || data.item.id }}
+            </p>
             <p>
               <span class="text-muted">Workshop id</span> {{ data.item.id }} ·
-              <span class="text-muted">Game</span> {{ data.app?.name ?? data.item.appId }}
+              <span class="text-muted">Game</span>
+              <NuxtLink
+                :to="`/apps/${data.item.appId}`"
+                class="hover:underline"
+              >{{ data.app?.name ?? data.item.appId }}</NuxtLink>
             </p>
             <p><span class="text-muted">Latest on Steam</span> {{ formatTime(data.item.remoteTimeUpdated) }} ({{ formatBytes(data.item.fileSize) }})</p>
             <p><span class="text-muted">Installed game version</span> {{ gameVersion ?? 'unknown' }}</p>
@@ -120,6 +106,13 @@ const setAutoUpdate = (on: boolean) => run('Saving', () => catalog.updateItem(id
               :model-value="data.item.autoUpdate"
               label="Include in automatic updates"
               @update:model-value="setAutoUpdate"
+            />
+            <UButton
+              size="sm"
+              icon="i-lucide-download"
+              :label="downloading ? 'Downloading…' : 'Download latest'"
+              :disabled="downloading"
+              @click="download"
             />
           </div>
         </div>
