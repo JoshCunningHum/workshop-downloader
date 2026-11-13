@@ -34,7 +34,7 @@ pub fn move_into(src: &Path, dest: &Path) -> Result<()> {
     rename_or_copy(src, dest)
 }
 
-fn rename_or_copy(src: &Path, dest: &Path) -> Result<()> {
+pub(crate) fn rename_or_copy(src: &Path, dest: &Path) -> Result<()> {
     match std::fs::rename(src, dest) {
         Ok(()) => Ok(()),
         // Different volumes (shouldn't happen with staging inside the library, but a user can

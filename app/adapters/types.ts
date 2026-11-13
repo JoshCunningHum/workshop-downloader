@@ -34,6 +34,11 @@ export interface AdapterDefinition {
   modsPath?: string
   /** Template for the link's folder name inside modsPath: {itemId}, {title}, {appId}. */
   linkName?: string
+  /**
+   * Globs relative to an item folder (e.g. "About/About.xml"); when set, a folder found in the
+   * mods folder only counts as a workshop item if at least one of them matches.
+   */
+  itemManifest?: string[]
   gameVersion?: ExtractRule[]
   itemVersions?: ExtractRule[]
 }

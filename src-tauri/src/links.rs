@@ -54,7 +54,7 @@ fn same_path(a: &Path, b: &Path) -> bool {
     normalize(a) == normalize(b)
 }
 
-fn is_inside(path: &Path, root: &Path) -> bool {
+pub(crate) fn is_inside(path: &Path, root: &Path) -> bool {
     if path.components().any(|c| c == std::path::Component::ParentDir) {
         return false;
     }

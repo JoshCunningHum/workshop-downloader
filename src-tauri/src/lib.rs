@@ -3,6 +3,7 @@ mod adapters_fs;
 mod error;
 mod library;
 mod links;
+mod mods;
 mod sidecar;
 mod steam_api;
 mod steam_local;
@@ -61,6 +62,8 @@ pub fn run() {
             links::link_create,
             links::link_remove,
             links::links_verify,
+            mods::mods_scan,
+            mods::mods_adopt,
             steam_api::steam_resolve,
             steam_api::steam_item_details,
             steam_api::steam_app_names,

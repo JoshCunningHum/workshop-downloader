@@ -198,7 +198,17 @@ async function detectInstall() {
   }
 }
 
-const saveSettings = () => run('Saving', async () => {
+// Setting (or changing) the mods folder offers to import the item folders already in it.
+const importOpen = ref(false)
+
+const saveSettings = async () => {
+  const before = app.value?.modsPath ?? null
+  await save()
+  const after = app.value?.modsPath ?? null
+  if (after && after !== before) importOpen.value = true
+}
+
+const save = () => run('Saving', async () => {
   const f = form.value!
   await catalog.updateApp(appId, {
     name: f.name || null,
@@ -481,6 +491,15 @@ const tabs = [
                     label="Browse"
                     @click="browse('modsPath')"
                   />
+                  <UButton
+                    color="neutral"
+                    variant="outline"
+                    icon="i-lucide-folder-input"
+                    label="Import existing…"
+                    :disabled="form.modsPath !== (app.modsPath ?? '')"
+                    :title="form.modsPath !== (app.modsPath ?? '') ? 'Save the new folder first' : undefined"
+                    @click="importOpen = true"
+                  />
                 </div>
               </UFormField>
               <UFormField
@@ -539,6 +558,12 @@ const tabs = [
             </form>
           </template>
         </UTabs>
+
+        <ModsImportDialog
+          v-model:open="importOpen"
+          :app="app"
+          @imported="refresh"
+        />
       </template>
     </template>
   </UDashboardPanel>
