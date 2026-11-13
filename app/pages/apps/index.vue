@@ -15,6 +15,22 @@ const { data: apps, refresh } = useAsyncData('apps', async () => {
   })))
 })
 
+// Fill in Steam store data (banner, description, ...) for apps that lack it, one at a time,
+// updating each card as it arrives. Failures (offline, rate limit) are retried next visit.
+let fetchingStore = false
+watch(apps, async (rows) => {
+  if (fetchingStore || !rows) return
+  fetchingStore = true
+  try {
+    for (const row of rows.filter(r => catalog.storeStale(r))) {
+      const updated = await catalog.refreshStore(row).catch(() => null)
+      if (updated) Object.assign(row, updated)
+    }
+  } finally {
+    fetchingStore = false
+  }
+}, { immediate: true })
+
 async function checkAll() {
   try {
     const items = await updates.check()
@@ -60,7 +76,26 @@ async function checkAll() {
           :to="`/apps/${app.appId}`"
           :title="app.name ?? `App ${app.appId}`"
           :description="`AppID ${app.appId} · ${app.items} item(s)`"
+          :ui="{ header: 'mb-3' }"
         >
+          <template #header>
+            <img
+              v-if="app.store?.headerImage"
+              :src="app.store.headerImage"
+              alt=""
+              class="aspect-460/215 w-full rounded-md object-cover"
+              loading="lazy"
+            >
+            <div
+              v-else
+              class="flex aspect-460/215 w-full items-center justify-center rounded-md bg-elevated"
+            >
+              <UIcon
+                name="i-lucide-gamepad-2"
+                class="size-10 text-dimmed"
+              />
+            </div>
+          </template>
           <div class="flex flex-wrap gap-1">
             <UBadge
               v-if="updates.outdated.value[app.appId]?.length"

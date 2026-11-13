@@ -1,7 +1,7 @@
 //! Steam Web API calls that need no key. Done in Rust to avoid webview CORS.
 //! - ISteamRemoteStorage/GetPublishedFileDetails: item metadata (consumer_app_id, time_updated, ...)
 //! - ISteamRemoteStorage/GetCollectionDetails: expands collections into their children
-//! - store.steampowered.com/api/appdetails: game names
+//! - store.steampowered.com/api/appdetails: game names and store metadata (image, description, ...)
 
 use crate::error::{Error, Result};
 use serde::Serialize;
@@ -172,6 +172,75 @@ pub async fn resolve(ids: Vec<String>) -> Result<Resolved> {
     Ok(Resolved { items: details(&item_ids).await?, collections })
 }
 
+/// Store page metadata of an app. Apps without a store page (most dedicated servers/tools) have none.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AppDetails {
+    pub name: String,
+    /// "game", "dlc", "demo", ...
+    pub kind: Option<String>,
+    pub short_description: Option<String>,
+    /// 460x215 banner.
+    pub header_image: Option<String>,
+    /// 231x87 capsule.
+    pub capsule_image: Option<String>,
+    pub developers: Vec<String>,
+    pub publishers: Vec<String>,
+    pub genres: Vec<String>,
+    /// As the store shows it, e.g. "17 Oct, 2018".
+    pub release_date: Option<String>,
+    pub website: Option<String>,
+}
+
+fn non_empty(v: &Value) -> Option<String> {
+    v.as_str().map(str::trim).filter(|s| !s.is_empty()).map(str::to_string)
+}
+
+/// Decodes the HTML entities the store leaves in descriptions (`&quot;`, `&amp;`, ...).
+fn decode_entities(text: &str) -> String {
+    text.replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+}
+
+fn strings(v: &Value) -> Vec<String> {
+    v.as_array().map(|a| a.iter().filter_map(non_empty).collect()).unwrap_or_default()
+}
+
+/// Parses an `appdetails` response; None when the store has no data for the app.
+pub fn parse_app_details(app_id: u32, body: &Value) -> Option<AppDetails> {
+    let entry = &body[app_id.to_string()];
+    if entry["success"].as_bool() != Some(true) {
+        return None;
+    }
+    let data = &entry["data"];
+    Some(AppDetails {
+        name: non_empty(&data["name"])?,
+        kind: non_empty(&data["type"]),
+        short_description: non_empty(&data["short_description"]).map(|d| decode_entities(&d)),
+        header_image: non_empty(&data["header_image"]),
+        capsule_image: non_empty(&data["capsule_image"]),
+        developers: strings(&data["developers"]),
+        publishers: strings(&data["publishers"]),
+        genres: data["genres"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|g| non_empty(&g["description"])).collect())
+            .unwrap_or_default(),
+        release_date: non_empty(&data["release_date"]["date"]),
+        website: non_empty(&data["website"]),
+    })
+}
+
+pub async fn app_details(app_id: u32) -> Result<Option<AppDetails>> {
+    let url = format!("https://store.steampowered.com/api/appdetails?appids={app_id}");
+    let body: Value = CLIENT.get(url).send().await?.error_for_status()?.json().await?;
+    Ok(parse_app_details(app_id, &body))
+}
+
 pub async fn app_name(app_id: u32) -> Result<Option<String>> {
     let url = format!("https://store.steampowered.com/api/appdetails?appids={app_id}&filters=basic");
     let body: Value = CLIENT.get(url).send().await?.json().await?;
@@ -186,6 +255,12 @@ pub async fn steam_resolve(ids: Vec<String>) -> Result<Resolved> {
 #[tauri::command]
 pub async fn steam_item_details(ids: Vec<String>) -> Result<Vec<ItemDetails>> {
     details(&ids).await
+}
+
+/// Store metadata for one app; None when the store has no page for it.
+#[tauri::command]
+pub async fn steam_app_details(app_id: u32) -> Result<Option<AppDetails>> {
+    app_details(app_id).await
 }
 
 /// Names for app ids; ids the store doesn't know (or network errors) are left out.
@@ -208,6 +283,41 @@ pub async fn steam_app_names(app_ids: Vec<u32>) -> HashMap<u32, String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn parses_store_app_details() {
+        let body = json!({ "294100": { "success": true, "data": {
+            "type": "game", "name": "RimWorld", "short_description": "A sci-fi colony sim. ",
+            "header_image": "https://cdn.example/294100/header.jpg", "capsule_image": "",
+            "developers": ["Ludeon Studios"], "publishers": ["Ludeon Studios", ""],
+            "genres": [{ "id": "28", "description": "Simulation" }, { "id": "2", "description": "Strategy" }],
+            "release_date": { "coming_soon": false, "date": "17 Oct, 2018" }, "website": null
+        }}});
+        assert_eq!(parse_app_details(294100, &body), Some(AppDetails {
+            name: "RimWorld".into(),
+            kind: Some("game".into()),
+            short_description: Some("A sci-fi colony sim.".into()),
+            header_image: Some("https://cdn.example/294100/header.jpg".into()),
+            capsule_image: None,
+            developers: vec!["Ludeon Studios".into()],
+            publishers: vec!["Ludeon Studios".into()],
+            genres: vec!["Simulation".into(), "Strategy".into()],
+            release_date: Some("17 Oct, 2018".into()),
+            website: None,
+        }));
+    }
+
+    #[test]
+    fn decodes_description_entities() {
+        assert_eq!(decode_entities("&quot;Hi&quot; &amp; it&#39;s &lt;3"), "\"Hi\" & it's <3");
+        assert_eq!(decode_entities("&amp;quot;"), "&quot;", "decoded once, not twice");
+    }
+
+    #[test]
+    fn store_without_data_gives_none() {
+        assert_eq!(parse_app_details(90, &json!({ "90": { "success": false } })), None);
+        assert_eq!(parse_app_details(90, &json!({})), None);
+    }
 
     #[test]
     fn parses_details_with_mixed_number_types() {

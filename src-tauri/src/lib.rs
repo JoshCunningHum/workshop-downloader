@@ -67,6 +67,7 @@ pub fn run() {
             steam_api::steam_resolve,
             steam_api::steam_item_details,
             steam_api::steam_app_names,
+            steam_api::steam_app_details,
             steam_local::steam_installed_games,
             steam_local::steam_installed_game,
             steam_local::steam_root_path,

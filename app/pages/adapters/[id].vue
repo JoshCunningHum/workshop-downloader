@@ -32,15 +32,6 @@ if (sourceId) {
 
 const errors = computed(() => validateDefinition(def.value))
 const json = computed(() => JSON.stringify(def.value, null, 2))
-// Comma-separated in the form; stored as a list (omitted when empty).
-const manifestText = computed({
-  get: () => (def.value.itemManifest ?? []).join(', '),
-  set: (text: string) => {
-    const globs = text.split(',').map(g => g.trim()).filter(Boolean)
-    def.value.itemManifest = globs.length ? globs : undefined
-  }
-})
-
 const appIdText = computed({
   get: () => def.value.appId?.toString() ?? '',
   set: (v: string) => {
@@ -158,16 +149,6 @@ async function testGame() {
           <UInput
             v-model="def.linkName"
             placeholder="{itemId}"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Item manifest"
-          description="Files every item of this game has, relative to the item folder (comma-separated globs). Used to recognize existing items in the mods folder; empty = only the Steam check."
-        >
-          <UInput
-            v-model="manifestText"
-            placeholder="About/About.xml"
             class="w-full"
           />
         </UFormField>

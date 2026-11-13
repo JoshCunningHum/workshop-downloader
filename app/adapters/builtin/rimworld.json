@@ -4,7 +4,6 @@
   "appId": 294100,
   "modsPath": "{install}/Mods",
   "linkName": "{itemId}",
-  "itemManifest": ["About/About.xml"],
   "gameVersion": [{ "source": "file", "path": "{install}/Version.txt", "regex": "^(\\d+\\.\\d+)" }],
   "itemVersions": [
     { "source": "file", "glob": "About/About.xml", "xpath": "//supportedVersions/li" },

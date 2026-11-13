@@ -1,6 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
 import { expandTemplate } from '~/adapters/engine'
-import type { FileContent } from '~/adapters/types'
 import type { AppRow } from '~/db/schema'
 import type { ItemDetails } from './useSteamApi'
 
@@ -10,17 +9,14 @@ interface FoundFolder {
   path: string
   kind: 'folder' | 'library' | 'link'
   modified: number | null
-  entries: number
 }
 
 export type ImportStatus
   = | 'ready' // can be imported
     | 'managed' // already a link into the library
     | 'link' // a link pointing elsewhere; left alone
-    | 'empty'
     | 'notFound' // Steam doesn't know the id (or it's removed/private)
     | 'otherGame' // a workshop item of another app
-    | 'noManifest' // the adapter's manifest files are missing
     | 'exists' // that revision is already in the library
 
 export interface ImportCandidate {
@@ -36,19 +32,17 @@ export interface ImportCandidate {
 const REASONS: Record<Exclude<ImportStatus, 'ready'>, string> = {
   managed: 'Already managed by this app',
   link: 'A link to a folder outside the library; left alone',
-  empty: 'Empty folder',
   notFound: 'Not found on the Steam Workshop (removed, private, or not a workshop item)',
   otherGame: 'A workshop item of a different game',
-  noManifest: 'Missing the files every item of this game has',
   exists: 'This revision is already in the library'
 }
 
 const sameFolder = (a: string, b: string) =>
   a.replace(/\\/g, '/').replace(/\/+$/, '') === b.replace(/\\/g, '/').replace(/\/+$/, '')
 
-// Takes over a game's existing mods folder (`<mods>/<workshop item id>/`): finds item folders,
-// checks them against Steam (and the adapter's manifest), then moves each into the library
-// as a snapshot with a link left in its place.
+// Takes over a game's existing mods folder (`<mods>/<workshop item id>/`): the folder name is the
+// item id, and Steam's Web API decides whether it's a workshop item of this game. Each one is
+// then moved into the library as a snapshot with a link left in its place.
 export function useModsImport() {
   const { settings } = useSettings()
   const catalog = useCatalog()
@@ -67,7 +61,6 @@ export function useModsImport() {
     const folder = await modsFolder(app)
     if (!folder) throw new Error('Set a mods folder first')
     const found = await invoke<FoundFolder[]>('mods_scan', { modsPath: folder, libraryPath: settings.value.libraryPath })
-    const adapter = await adapters.forApp(app)
 
     const real = found.filter(f => f.kind === 'folder')
     const details = new Map((real.length ? await steam.itemDetails(real.map(f => f.itemId)) : []).map(d => [d.id, d]))
@@ -78,21 +71,16 @@ export function useModsImport() {
     for (const f of found) {
       const d = details.get(f.itemId) ?? null
       const timeUpdated = d ? Math.min(f.modified ?? d.timeUpdated, d.timeUpdated) : (f.modified ?? 0)
-      const status = await check(f, d, timeUpdated)
+      const status = check(f, d, timeUpdated)
       candidates.push({ itemId: f.itemId, path: f.path, status, reason: status === 'ready' ? null : REASONS[status], details: d, timeUpdated })
     }
     return candidates
 
-    async function check(f: FoundFolder, d: ItemDetails | null, timeUpdated: number): Promise<ImportStatus> {
+    function check(f: FoundFolder, d: ItemDetails | null, timeUpdated: number): ImportStatus {
       if (f.kind === 'library') return 'managed'
       if (f.kind === 'link') return 'link'
-      if (!f.entries) return 'empty'
       if (!d || d.result !== 1) return 'notFound'
       if (d.appId !== app.appId) return 'otherGame'
-      if (adapter.itemManifest?.length) {
-        const files = await invoke<FileContent[]>('read_files', { root: f.path, globs: adapter.itemManifest, maxBytes: 1 }).catch(() => [])
-        if (!files.length) return 'noManifest'
-      }
       if (existing.get(f.itemId)?.has(timeUpdated)) return 'exists'
       return 'ready'
     }

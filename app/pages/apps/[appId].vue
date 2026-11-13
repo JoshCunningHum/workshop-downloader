@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { open } from '@tauri-apps/plugin-dialog'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { inArray } from 'drizzle-orm'
 import type { TableColumn } from '@nuxt/ui'
 import { isCompatible } from '~/adapters/engine'
@@ -38,6 +39,25 @@ const { data, refresh } = useAsyncData(`app-${appId}`, async () => {
 })
 
 const app = computed(() => data.value?.app ?? null)
+
+// Steam store metadata: fetched on open when missing or older than a week.
+watch(app, async (value) => {
+  if (!value || !catalog.storeStale(value)) return
+  const updated = await catalog.refreshStore(value).catch(() => null)
+  if (updated && data.value) data.value.app = updated
+}, { immediate: true })
+
+const store = computed(() => app.value?.store ?? null)
+const storeMeta = computed(() => {
+  const s = store.value
+  if (!s) return []
+  return [
+    s.developers.length ? `by ${s.developers.join(', ')}` : null,
+    s.publishers.length && s.publishers.join() !== s.developers.join() ? `published by ${s.publishers.join(', ')}` : null,
+    s.releaseDate,
+    s.genres.join(', ') || null
+  ].filter(Boolean) as string[]
+})
 const gameVersion = computed(() => app.value?.manualGameVersion || app.value?.detectedGameVersion || null)
 
 interface Row {
@@ -242,6 +262,43 @@ const tabs = [
       />
 
       <template v-else>
+        <div
+          v-if="store"
+          class="flex gap-4"
+        >
+          <img
+            v-if="store.headerImage"
+            :src="store.headerImage"
+            alt=""
+            class="aspect-460/215 h-20 shrink-0 rounded-md object-cover"
+          >
+          <div class="min-w-0 space-y-1">
+            <div class="flex items-center gap-2">
+              <span class="truncate font-semibold">{{ app.name ?? store.name }}</span>
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="link"
+                icon="i-lucide-external-link"
+                label="Store page"
+                @click="openUrl(`https://store.steampowered.com/app/${app.appId}/`)"
+              />
+            </div>
+            <p
+              v-if="store.shortDescription"
+              class="line-clamp-2 text-sm text-muted"
+            >
+              {{ store.shortDescription }}
+            </p>
+            <p
+              v-if="storeMeta.length"
+              class="text-xs text-dimmed"
+            >
+              {{ storeMeta.join(' · ') }}
+            </p>
+          </div>
+        </div>
+
         <div class="flex flex-wrap items-center gap-3 text-sm">
           <span>AppID {{ app.appId }}</span>
           <span class="text-muted">·</span>

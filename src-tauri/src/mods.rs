@@ -31,8 +31,6 @@ pub struct FoundFolder {
     pub kind: FolderKind,
     /// Newest modification time inside the folder, in Unix seconds.
     pub modified: Option<i64>,
-    /// Entries directly inside the folder.
-    pub entries: usize,
 }
 
 fn is_item_id(name: &str) -> bool {
@@ -80,11 +78,10 @@ pub fn scan(mods: &Path, library: Option<&Path>) -> Result<Vec<FoundFolder>> {
         if let Some(target) = links::link_target(&path) {
             let managed = library.is_some_and(|lib| links::is_inside(&target, lib));
             let kind = if managed { FolderKind::Library } else { FolderKind::Link };
-            found.push(FoundFolder { item_id: name, path, kind, modified: None, entries: 0 });
+            found.push(FoundFolder { item_id: name, path, kind, modified: None });
         } else if path.is_dir() {
-            let entries = std::fs::read_dir(&path).map(|d| d.count()).unwrap_or(0);
             let modified = newest_modified(&path);
-            found.push(FoundFolder { item_id: name, path, kind: FolderKind::Folder, modified, entries });
+            found.push(FoundFolder { item_id: name, path, kind: FolderKind::Folder, modified });
         }
     }
     found.sort_by(|a, b| a.item_id.cmp(&b.item_id));
@@ -186,7 +183,7 @@ mod tests {
         let found = scan(&f.mods, Some(&f.lib)).unwrap();
         let ids: Vec<_> = found.iter().map(|x| x.item_id.as_str()).collect();
         assert_eq!(ids, ["111", "222"]);
-        assert!(found.iter().all(|x| x.kind == FolderKind::Folder && x.entries == 1 && x.modified.is_some()));
+        assert!(found.iter().all(|x| x.kind == FolderKind::Folder && x.modified.is_some()));
     }
 
     #[cfg(unix)]

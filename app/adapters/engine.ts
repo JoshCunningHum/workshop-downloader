@@ -124,9 +124,6 @@ export function validateDefinition(value: unknown): string[] {
   if (!def.id || !/^[\w-]+$/.test(def.id)) errors.push('id is required (letters, digits, - and _)')
   if (!def.name) errors.push('name is required')
   if (def.appId !== null && def.appId !== undefined && !Number.isInteger(def.appId)) errors.push('appId must be a number or null')
-  if (def.itemManifest !== undefined && (!Array.isArray(def.itemManifest) || def.itemManifest.some(g => typeof g !== 'string' || !g.trim()))) {
-    errors.push('itemManifest must be a list of non-empty globs')
-  }
   for (const key of ['gameVersion', 'itemVersions'] as const) {
     const rules = def[key]
     if (rules === undefined) continue

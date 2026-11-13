@@ -1,5 +1,6 @@
 import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import type { AdapterDefinition } from '~/adapters/types'
+import type { AppDetails } from '~/composables/useSteamApi'
 
 // Key/value app settings (library path, concurrency, poll interval). See composables/useSettings.ts.
 export const settings = sqliteTable('settings', {
@@ -24,6 +25,10 @@ export const apps = sqliteTable('apps', {
   autoUpdate: integer('auto_update', { mode: 'boolean' }).notNull().default(false),
   // Snapshots kept per item (plus pinned and active ones). 0 = keep everything.
   retention: integer('retention').notNull().default(3),
+  // Steam store metadata (banner, description, developers, ...); null when the store has no page.
+  store: text('store', { mode: 'json' }).$type<AppDetails>(),
+  // Last store lookup, found or not; avoids asking again for apps without a store page.
+  storeCheckedAt: integer('store_checked_at'),
   createdAt: integer('created_at').notNull()
 })
 

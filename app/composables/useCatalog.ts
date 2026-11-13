@@ -46,6 +46,24 @@ export function useCatalog() {
     }
   }
 
+  /** Store data older than this is fetched again. */
+  const STORE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
+
+  const storeStale = (app: Pick<AppRow, 'storeCheckedAt'>) =>
+    !app.storeCheckedAt || Date.now() - app.storeCheckedAt > STORE_MAX_AGE_MS
+
+  /**
+   * Fetches the app's Steam store metadata (banner, description, developers, ...) when missing or
+   * stale, or always with `force`. Fills in the name if the app has none. Returns the updated row.
+   */
+  async function refreshStore(app: AppRow, force = false): Promise<AppRow> {
+    if (!force && !storeStale(app)) return app
+    const details = await steam.appDetails(app.appId)
+    const patch = { store: details, storeCheckedAt: Date.now(), name: app.name ?? details?.name ?? null }
+    await updateApp(app.appId, patch)
+    return { ...app, ...patch }
+  }
+
   async function upsertItems(details: ItemDetails[]) {
     for (const d of details) {
       const values = {
@@ -115,5 +133,5 @@ export function useCatalog() {
     return db().select().from(workshopItems).where(and(eq(workshopItems.appId, appId), inArray(workshopItems.id, ids)))
   }
 
-  return { listApps, getApp, updateApp, ensureApp, importInstalledGames, upsertItems, listItems, getItem, updateItem, latestSnapshotTimes, checkUpdates, removeItem, itemsByIds, itemsForApp }
+  return { listApps, getApp, updateApp, ensureApp, importInstalledGames, storeStale, refreshStore, upsertItems, listItems, getItem, updateItem, latestSnapshotTimes, checkUpdates, removeItem, itemsByIds, itemsForApp }
 }
