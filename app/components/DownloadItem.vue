@@ -39,62 +39,67 @@ const others = computed(() => props.job.itemIds.filter(id => id !== props.itemId
 
 <template>
   <li class="flex items-center gap-3 py-2">
-    <img
-      v-if="item?.previewUrl"
-      :src="item.previewUrl"
-      alt=""
-      class="size-10 shrink-0 rounded object-cover"
-      loading="lazy"
+    <WorkshopItemTooltip
+      :item-id="itemId"
+      class="flex flex-1 items-center gap-3"
     >
-    <div
-      v-else
-      class="flex size-10 shrink-0 items-center justify-center rounded bg-elevated"
-    >
-      <UIcon
-        name="i-lucide-package"
-        class="size-5 text-dimmed"
-      />
-    </div>
+      <img
+        v-if="item?.previewUrl"
+        :src="item.previewUrl"
+        alt=""
+        class="size-10 shrink-0 rounded object-cover"
+        loading="lazy"
+      >
+      <div
+        v-else
+        class="flex size-10 shrink-0 items-center justify-center rounded bg-elevated"
+      >
+        <UIcon
+          name="i-lucide-package"
+          class="size-5 text-dimmed"
+        />
+      </div>
 
-    <div class="min-w-0 flex-1 space-y-1">
-      <div class="flex items-center gap-2">
-        <NuxtLink
-          :to="`/items/${itemId}`"
-          class="truncate text-sm font-medium hover:underline"
-        >
-          {{ item?.title || itemId }}
-        </NuxtLink>
-        <NuxtLink
-          :to="`/apps/${job.appId}`"
-          class="shrink-0 truncate text-xs text-muted hover:underline"
-        >
-          {{ appName ?? `App ${job.appId}` }}
-        </NuxtLink>
-      </div>
-      <div class="flex items-center gap-2">
-        <div
-          v-if="status.state !== 'failed' && status.state !== 'cancelled'"
-          class="h-px flex-1 overflow-hidden bg-accented"
-          role="progressbar"
-          :aria-valuenow="progress.percent ?? 0"
-          aria-valuemin="0"
-          aria-valuemax="100"
-        >
-          <div
-            class="h-full transition-[width,background-color] duration-500"
-            :style="{ width: `${progress.percent ?? 0}%`, backgroundColor: barColor }"
-          />
+      <div class="min-w-0 flex-1 space-y-1">
+        <div class="flex items-center gap-2">
+          <NuxtLink
+            :to="`/items/${itemId}`"
+            class="truncate text-sm font-medium hover:underline"
+          >
+            {{ item?.title || itemId }}
+          </NuxtLink>
+          <NuxtLink
+            :to="`/apps/${job.appId}`"
+            class="shrink-0 truncate text-xs text-muted hover:underline"
+          >
+            {{ appName ?? `App ${job.appId}` }}
+          </NuxtLink>
         </div>
-        <span
-          v-if="status.reason"
-          class="min-w-0 flex-1 truncate text-xs text-error"
-          :title="status.reason"
-        >{{ status.reason }}</span>
-        <span class="shrink-0 text-xs text-muted tabular-nums">
-          <template v-if="status.state === 'downloading' || status.state === 'done'">{{ formatBytes(progress.bytes) }} / </template>{{ formatBytes(progress.total) }}
-        </span>
+        <div class="flex items-center gap-2">
+          <div
+            v-if="status.state !== 'failed' && status.state !== 'cancelled'"
+            class="h-px flex-1 overflow-hidden bg-accented"
+            role="progressbar"
+            :aria-valuenow="progress.percent ?? 0"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <div
+              class="h-full transition-[width,background-color] duration-500"
+              :style="{ width: `${progress.percent ?? 0}%`, backgroundColor: barColor }"
+            />
+          </div>
+          <span
+            v-if="status.reason"
+            class="min-w-0 flex-1 truncate text-xs text-error"
+            :title="status.reason"
+          >{{ status.reason }}</span>
+          <span class="shrink-0 text-xs text-muted tabular-nums">
+            <template v-if="status.state === 'downloading' || status.state === 'done'">{{ formatBytes(progress.bytes) }} / </template>{{ formatBytes(progress.total) }}
+          </span>
+        </div>
       </div>
-    </div>
+    </WorkshopItemTooltip>
 
     <UBadge
       :color="COLORS[status.state]"

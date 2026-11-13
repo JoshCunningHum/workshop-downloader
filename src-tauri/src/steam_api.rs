@@ -38,6 +38,12 @@ pub struct ItemDetails {
     pub time_updated: i64,
     pub tags: Vec<String>,
     pub banned: bool,
+    /// Workshop page text (BBCode).
+    pub description: String,
+    /// Current subscribers.
+    pub subscriptions: u64,
+    pub favorited: u64,
+    pub views: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -91,6 +97,10 @@ pub fn parse_details(body: &Value) -> Vec<ItemDetails> {
                 .map(|tags| tags.iter().filter_map(|t| t["tag"].as_str().map(str::to_string)).collect())
                 .unwrap_or_default(),
             banned: num(&d["banned"]).unwrap_or(0) != 0 || d["banned"].as_bool().unwrap_or(false),
+            description: string(&d["description"]),
+            subscriptions: num(&d["subscriptions"]).unwrap_or(0).max(0) as u64,
+            favorited: num(&d["favorited"]).unwrap_or(0).max(0) as u64,
+            views: num(&d["views"]).unwrap_or(0).max(0) as u64,
         })
         .collect()
 }
@@ -324,7 +334,8 @@ mod tests {
         let body = json!({ "response": { "result": 1, "resultcount": 2, "publishedfiledetails": [
             { "publishedfileid": "123", "result": 1, "creator": "7656", "consumer_app_id": 294100,
               "file_size": "2048", "preview_url": "https://img/x.jpg", "title": "Mod", "time_created": 1,
-              "time_updated": 1700000000, "banned": 0, "tags": [{ "tag": "Mod" }, { "tag": "1.5" }] },
+              "time_updated": 1700000000, "banned": 0, "tags": [{ "tag": "Mod" }, { "tag": "1.5" }],
+              "description": "[b]Adds[/b] things", "subscriptions": 1200, "favorited": "34", "views": 5600 },
             { "publishedfileid": "999", "result": 9 }
         ]}});
         let items = parse_details(&body);
@@ -332,6 +343,8 @@ mod tests {
         assert_eq!(items[0].file_size, 2048);
         assert_eq!(items[0].time_updated, 1700000000);
         assert_eq!(items[0].tags, vec!["Mod", "1.5"]);
+        assert_eq!(items[0].description, "[b]Adds[/b] things");
+        assert_eq!((items[0].subscriptions, items[0].favorited, items[0].views), (1200, 34, 5600));
         assert_eq!((items[1].id.as_str(), items[1].result, items[1].app_id), ("999", 9, 0));
     }
 

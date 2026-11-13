@@ -193,20 +193,26 @@ watch(input, () => {
               :model-value="!excluded.has(item.id)"
               @update:model-value="toggle(item.id, $event)"
             />
-            <img
-              v-if="item.previewUrl"
-              :src="item.previewUrl"
-              alt=""
-              class="size-10 rounded object-cover"
+            <WorkshopItemTooltip
+              :item-id="item.id"
+              :details="item"
+              class="flex flex-1 items-center gap-3"
             >
-            <div class="min-w-0 flex-1">
-              <p class="truncate">
-                {{ item.title || item.id }}
-              </p>
-              <p class="text-xs text-muted">
-                {{ formatBytes(item.fileSize) }} · updated {{ formatTime(item.timeUpdated) }}
-              </p>
-            </div>
+              <img
+                v-if="item.previewUrl"
+                :src="item.previewUrl"
+                alt=""
+                class="size-10 rounded object-cover"
+              >
+              <div class="min-w-0 flex-1">
+                <p class="truncate">
+                  {{ item.title || item.id }}
+                </p>
+                <p class="text-xs text-muted">
+                  {{ formatBytes(item.fileSize) }} · updated {{ formatTime(item.timeUpdated) }}
+                </p>
+              </div>
+            </WorkshopItemTooltip>
             <UBadge
               v-if="isCurrent(item)"
               color="success"

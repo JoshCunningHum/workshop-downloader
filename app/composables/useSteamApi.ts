@@ -14,6 +14,11 @@ export interface ItemDetails {
   timeUpdated: number
   tags: string[]
   banned: boolean
+  /** Workshop page text (BBCode). */
+  description: string
+  subscriptions: number
+  favorited: number
+  views: number
 }
 
 export interface Resolved {

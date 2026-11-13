@@ -321,6 +321,14 @@ const view = ref<'items' | 'settings'>('items')
           <div class="ms-auto flex flex-wrap gap-2">
             <UButton
               size="xs"
+              icon="i-lucide-download"
+              label="Update outdated"
+              :disabled="!rows.some(r => r.updateAvailable)"
+              :loading="busy"
+              @click="download(rows.filter(r => r.updateAvailable).map(r => r.item.id))"
+            />
+            <UButton
+              size="xs"
               icon="i-lucide-refresh-cw"
               label="Check updates"
               color="neutral"
@@ -351,54 +359,48 @@ const view = ref<'items' | 'settings'>('items')
         </div>
 
         <template v-if="view === 'items'">
-          <div class="mb-3 flex flex-wrap gap-2">
+          <div
+            v-if="selected.size"
+            class="flex flex-wrap gap-2"
+          >
             <UButton
               size="sm"
+              color="neutral"
+              variant="outline"
               icon="i-lucide-download"
-              label="Update outdated"
-              :disabled="!rows.some(r => r.updateAvailable)"
-              :loading="busy"
-              @click="download(rows.filter(r => r.updateAvailable).map(r => r.item.id))"
+              :label="`Download ${selected.size}`"
+              @click="download([...selected])"
             />
-            <template v-if="selected.size">
-              <UButton
-                size="sm"
-                color="neutral"
-                variant="outline"
-                icon="i-lucide-download"
-                :label="`Download ${selected.size}`"
-                @click="download([...selected])"
-              />
-              <UButton
-                size="sm"
-                color="neutral"
-                variant="outline"
-                icon="i-lucide-link"
-                label="Link"
-                @click="linkRows(selectedRows())"
-              />
-              <UButton
-                size="sm"
-                color="neutral"
-                variant="outline"
-                icon="i-lucide-unlink"
-                label="Unlink"
-                @click="unlinkRows(selectedRows())"
-              />
-              <UButton
-                size="sm"
-                color="error"
-                variant="outline"
-                icon="i-lucide-trash-2"
-                label="Remove"
-                @click="removeRows(selectedRows())"
-              />
-            </template>
+            <UButton
+              size="sm"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-link"
+              label="Link"
+              @click="linkRows(selectedRows())"
+            />
+            <UButton
+              size="sm"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-unlink"
+              label="Unlink"
+              @click="unlinkRows(selectedRows())"
+            />
+            <UButton
+              size="sm"
+              color="error"
+              variant="outline"
+              icon="i-lucide-trash-2"
+              label="Remove"
+              @click="removeRows(selectedRows())"
+            />
           </div>
 
           <UTable
             :data="rows"
             :columns="columns"
+            :ui="{ td: 'py-0' }"
           >
             <template #select-header>
               <UCheckbox
@@ -413,50 +415,52 @@ const view = ref<'items' | 'settings'>('items')
               />
             </template>
             <template #title-cell="{ row }">
-              <div class="flex items-center gap-3">
-                <img
-                  v-if="row.original.item.previewUrl"
-                  :src="row.original.item.previewUrl"
-                  alt=""
-                  class="size-10 shrink-0 rounded object-cover"
-                  loading="lazy"
-                >
-                <div
-                  v-else
-                  class="flex size-10 shrink-0 items-center justify-center rounded bg-elevated"
-                >
-                  <UIcon
-                    name="i-lucide-package"
-                    class="size-5 text-dimmed"
-                  />
-                </div>
-                <div class="min-w-0">
-                  <NuxtLink
-                    :to="`/items/${row.original.item.id}`"
-                    class="font-medium hover:underline"
+              <WorkshopItemTooltip :item-id="row.original.item.id">
+                <div class="flex h-13 items-center gap-3">
+                  <img
+                    v-if="row.original.item.previewUrl"
+                    :src="row.original.item.previewUrl"
+                    alt=""
+                    class="size-13 shrink-0 object-cover"
+                    loading="lazy"
                   >
-                    {{ row.original.item.title || row.original.item.id }}
-                  </NuxtLink>
-                  <div class="flex gap-1">
-                    <UBadge
-                      v-if="row.original.updateAvailable"
-                      size="sm"
-                      color="warning"
-                      variant="subtle"
+                  <div
+                    v-else
+                    class="flex size-13 shrink-0 items-center justify-center bg-elevated"
+                  >
+                    <UIcon
+                      name="i-lucide-package"
+                      class="size-5 text-dimmed"
+                    />
+                  </div>
+                  <div class="min-w-0">
+                    <NuxtLink
+                      :to="`/items/${row.original.item.id}`"
+                      class="font-medium hover:underline"
                     >
-                      {{ row.original.latest ? 'update available' : 'not downloaded' }}
-                    </UBadge>
-                    <UBadge
-                      v-if="jobsStore.busyItemIds.value.has(row.original.item.id)"
-                      size="sm"
-                      color="primary"
-                      variant="subtle"
-                    >
-                      downloading
-                    </UBadge>
+                      {{ row.original.item.title || row.original.item.id }}
+                    </NuxtLink>
+                    <div class="flex gap-1">
+                      <UBadge
+                        v-if="row.original.updateAvailable"
+                        size="sm"
+                        color="warning"
+                        variant="subtle"
+                      >
+                        {{ row.original.latest ? 'update available' : 'not downloaded' }}
+                      </UBadge>
+                      <UBadge
+                        v-if="jobsStore.busyItemIds.value.has(row.original.item.id)"
+                        size="sm"
+                        color="primary"
+                        variant="subtle"
+                      >
+                        downloading
+                      </UBadge>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </WorkshopItemTooltip>
             </template>
             <template #versions-cell="{ row }">
               <span>{{ row.original.active?.itemVersions.join(', ') || '—' }}</span>

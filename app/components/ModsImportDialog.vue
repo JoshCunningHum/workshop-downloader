@@ -131,29 +131,35 @@ watch(open, (value) => {
                   :disabled="importing || c.itemId in results"
                   @update:model-value="toggle(c.itemId, $event)"
                 />
-                <img
-                  v-if="c.details?.previewUrl"
-                  :src="c.details.previewUrl"
-                  alt=""
-                  class="size-9 rounded object-cover"
+                <WorkshopItemTooltip
+                  :item-id="c.itemId"
+                  :details="c.details"
+                  class="flex flex-1 items-center gap-3"
                 >
-                <div class="min-w-0 flex-1">
-                  <p class="truncate text-sm">
-                    {{ c.details?.title || c.itemId }}
-                  </p>
-                  <p class="text-xs text-muted">
-                    {{ c.itemId }} · {{ formatBytes(c.details?.fileSize ?? 0) }}
-                    <template v-if="c.details && c.timeUpdated < c.details.timeUpdated">
-                      · older than Steam's latest
-                    </template>
-                  </p>
-                  <p
-                    v-if="results[c.itemId]"
-                    class="text-xs text-error"
+                  <img
+                    v-if="c.details?.previewUrl"
+                    :src="c.details.previewUrl"
+                    alt=""
+                    class="size-9 rounded object-cover"
                   >
-                    {{ results[c.itemId] }}
-                  </p>
-                </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm">
+                      {{ c.details?.title || c.itemId }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ c.itemId }} · {{ formatBytes(c.details?.fileSize ?? 0) }}
+                      <template v-if="c.details && c.timeUpdated < c.details.timeUpdated">
+                        · older than Steam's latest
+                      </template>
+                    </p>
+                    <p
+                      v-if="results[c.itemId]"
+                      class="text-xs text-error"
+                    >
+                      {{ results[c.itemId] }}
+                    </p>
+                  </div>
+                </WorkshopItemTooltip>
                 <UIcon
                   v-if="c.itemId in results"
                   :name="results[c.itemId] ? 'i-lucide-circle-x' : 'i-lucide-circle-check'"
