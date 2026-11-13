@@ -1,0 +1,26 @@
+node_modules
+.nuxt
+.output
+.data
+.nitro
+.cache
+dist
+logs
+*.log
+.DS_Store
+.fleet
+.idea
+.env
+.env.*
+!.env.example
+.agents/
+.claude/
+
+# Rust
+target/
+
+# Built sidecar binaries (produced by `bun run sidecar`)
+src-tauri/binaries/fswatch-*
+
+# Source image for `tauri icon`
+app-icon.png
