@@ -1,0 +1,53 @@
+[package]
+name = "workshop-downloader"
+version = "0.1.0"
+description = "Steam Workshop downloader built on SteamCMD"
+license = ""
+repository = ""
+edition = "2024"
+rust-version = "1.90"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+# src-tauri is the workspace root; the fswatch sidecar builds into the same target/ dir.
+[workspace]
+members = ["../crates/fswatch"]
+
+[lib]
+name = "workshop_downloader_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.12.5", features = [] }
+tauri-plugin-log = "2"
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-opener = "2"
+tokio = { version = "1", features = ["process", "sync", "time", "io-util", "macros", "rt-multi-thread", "fs"] }
+reqwest = { version = "0.12", features = ["json"] }
+thiserror = "2"
+regex = "1"
+glob = "0.3"
+flate2 = "1"
+tar = "0.4"
+keyvalues-parser = "0.2"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance = "2"
+
+[target."cfg(windows)".dependencies]
+junction = "1"
+winreg = "0.55"
+
+[dev-dependencies]
+tempfile = "3"
