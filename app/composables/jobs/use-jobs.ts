@@ -1,19 +1,18 @@
+import { ACTIVE_JOB_STATUSES as ACTIVE, HISTORY_LIMIT } from '~/constants/jobs'
 import { channel } from '~/lib/api/tauri'
-import type { JobStatus } from '~/lib/db/schema'
 import * as accounts from '~/lib/services/accounts'
 import * as jobsDb from '~/lib/services/jobs'
-import { ACTIVE_JOB_STATUSES as ACTIVE, HISTORY_LIMIT, LOG_TAIL_LINES, MAX_LOG_LINES } from '~/constants/jobs'
-import type { ItemState, JobEvent, LiveJob } from '~/types/jobs'
+import type { JobEvent, LiveJob } from '~/types/jobs'
 
 const state = reactive({ jobs: [] as LiveJob[], loaded: false })
 // Events of one job are handled strictly in order (snapshot writes must finish before "finished").
 const chains = new Map<string, Promise<void>>()
 
+// SteamCMD download jobs: the live list, queueing, cancelling and retrying.
 export function useJobs() {
   const { settings } = useSettings()
   const catalog = useCatalog()
-  const library = useLibrary()
-  const toast = useToast()
+  const { handle } = useJobEvents()
 
   /** Marks jobs left running by a previous session as interrupted and loads recent history. */
   async function loadHistory() {
@@ -61,15 +60,7 @@ export function useJobs() {
     const itemIds = items.map(i => i.id)
     const bytesTotal = items.reduce((sum, i) => sum + i.fileSize, 0)
 
-    await jobsDb.insert({
-      id,
-      appId,
-      itemIds,
-      accountId,
-      status: 'queued',
-      bytesTotal,
-      createdAt
-    })
+    await jobsDb.insert({ id, appId, itemIds, accountId, status: 'queued', bytesTotal, createdAt })
     state.jobs.unshift({
       id, appId, itemIds, accountId, status: 'queued', slot: null, progress: {}, bytesTotal, itemErrors: {}, itemsDone: {},
       log: [], error: null, guard: null, createdAt, startedAt: null, finishedAt: null
@@ -79,6 +70,9 @@ export function useJobs() {
     const onEvent = channel<JobEvent>((event) => {
       const next = (chains.get(id) ?? Promise.resolve())
         .then(() => handle(job, event))
+        .then(() => {
+          if (event.type === 'finished') chains.delete(id)
+        })
         .catch((e) => {
           job.log.push(`[app] ${e instanceof Error ? e.message : String(e)}`)
         })
@@ -96,90 +90,9 @@ export function useJobs() {
       }, onEvent)
     } catch (e) {
       await handle(job, { type: 'finished', status: 'failed', error: e instanceof Error ? e.message : String(e) })
+      chains.delete(id)
     }
     return id
-  }
-
-  async function handle(job: LiveJob, event: JobEvent) {
-    switch (event.type) {
-      case 'queued':
-        job.status = 'queued'
-        break
-      case 'started':
-        job.status = 'running'
-        job.slot = event.slot
-        job.startedAt = Date.now()
-        await jobsDb.update(job.id, { status: 'running', workerSlot: event.slot, startedAt: job.startedAt })
-        break
-      case 'log':
-        job.log.push(event.line)
-        if (job.log.length > MAX_LOG_LINES) job.log.splice(0, job.log.length - MAX_LOG_LINES)
-        break
-      case 'progress':
-        job.progress[event.itemId] = { bytes: event.bytes, total: event.total }
-        break
-      case 'itemDone':
-        job.progress[event.itemId] = { bytes: event.sizeBytes, total: event.sizeBytes }
-        job.itemsDone[event.itemId] = true
-        await onItemDone(job, event)
-        break
-      case 'itemFailed':
-        job.itemErrors[event.itemId] = event.reason
-        break
-      case 'loginOk':
-        if (job.accountId !== null) await accounts.markLoginOk(job.accountId)
-        break
-      case 'steamGuard':
-        job.guard = event.kind
-        break
-      case 'finished':
-        await onFinished(job, event)
-        chains.delete(job.id)
-        break
-    }
-  }
-
-  async function onItemDone(job: LiveJob, event: Extract<JobEvent, { type: 'itemDone' }>) {
-    const snapshot = await library.recordSnapshot(event)
-    const item = await catalog.getItem(event.itemId)
-    const app = await catalog.getApp(job.appId)
-    if (!item || !app) return
-    try {
-      await library.detectVersions(snapshot, item, app)
-    } catch (e) {
-      job.log.push(`[app] version detection failed for ${item.id}: ${String(e)}`)
-    }
-    // A fresh download becomes the active version; older snapshots stay available to switch back.
-    try {
-      await library.activate(snapshot.id)
-    } catch (e) {
-      job.itemErrors[item.id] = `Downloaded, but linking failed: ${e instanceof Error ? e.message : String(e)}`
-    }
-    try {
-      await library.prune(item.id)
-    } catch (e) {
-      job.log.push(`[app] cleanup of old snapshots failed for ${item.id}: ${String(e)}`)
-    }
-  }
-
-  async function onFinished(job: LiveJob, event: Extract<JobEvent, { type: 'finished' }>) {
-    job.status = event.status
-    job.error = event.error
-    job.finishedAt = Date.now()
-    const bytesDone = Object.values(job.progress).reduce((sum, p) => sum + p.bytes, 0)
-    await jobsDb.update(job.id, {
-      status: event.status,
-      error: event.error ?? (Object.keys(job.itemErrors).length ? Object.entries(job.itemErrors).map(([id, r]) => `${id}: ${r}`).join('\n') : null),
-      bytesDone,
-      logTail: job.log.slice(-LOG_TAIL_LINES).join('\n'),
-      finishedAt: job.finishedAt
-    })
-
-    if (event.status === 'needs_guard') {
-      toast.add({ title: 'Steam Guard code needed', description: 'Enter the code on the Downloads page to continue.', color: 'warning' })
-    } else if (event.status === 'failed') {
-      toast.add({ title: 'Download failed', description: event.error ?? 'See the job log', color: 'error' })
-    }
   }
 
   const cancel = jobsDb.cancel
@@ -211,50 +124,4 @@ export function useJobs() {
   const busyItemIds = computed(() => new Set(active.value.flatMap(j => j.itemIds)))
 
   return { jobs: computed(() => state.jobs), active, busyItemIds, loadHistory, enqueue, cancel, submitGuardCode, retry, retryItem, clearFinished }
-}
-
-/**
- * Per-item results of a job loaded from history. A partial job stored its failures as
- * "<itemId>: <reason>" lines in `error`; the other items of a done/partial job finished.
- */
-function historyItems(status: JobStatus, itemIds: string[], error: string | null) {
-  const itemErrors: Record<string, string> = {}
-  const itemsDone: Record<string, true> = {}
-  if (status === 'partial') {
-    for (const line of (error ?? '').split('\n')) {
-      const m = line.match(/^(\d+): (.*)$/)
-      if (m && itemIds.includes(m[1]!)) itemErrors[m[1]!] = m[2]!
-    }
-  }
-  if (status === 'done' || status === 'partial') {
-    for (const id of itemIds) if (!itemErrors[id]) itemsDone[id] = true
-  }
-  return { itemErrors, itemsDone }
-}
-
-/** Where one item of a job stands, and why when it didn't finish. */
-export function itemState(job: LiveJob, itemId: string): { state: ItemState, reason: string | null } {
-  if (job.itemErrors[itemId]) return { state: 'failed', reason: job.itemErrors[itemId]! }
-  if (job.itemsDone[itemId]) return { state: 'done', reason: null }
-  switch (job.status) {
-    case 'queued':
-      return { state: 'queued', reason: null }
-    case 'running':
-      // SteamCMD fetches a process's items one after another.
-      return { state: job.progress[itemId] ? 'downloading' : 'waiting', reason: null }
-    case 'done':
-      return { state: 'done', reason: null }
-    case 'partial':
-    case 'failed':
-      return { state: 'failed', reason: job.error }
-    default:
-      return { state: job.status, reason: job.error }
-  }
-}
-
-export function jobProgress(job: LiveJob) {
-  const values = Object.values(job.progress)
-  const bytes = values.reduce((s, p) => s + Math.min(p.bytes, p.total || p.bytes), 0)
-  const total = Math.max(job.bytesTotal, values.reduce((s, p) => s + (p.total || p.bytes), 0))
-  return { bytes, total, ratio: total ? Math.min(1, bytes / total) : 0 }
 }
