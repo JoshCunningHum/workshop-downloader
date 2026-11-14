@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ROUTES } from '~/constants/routes'
+
 const catalog = useCatalog()
 const updates = useUpdateChecker()
 const toast = useToast()
@@ -60,7 +62,7 @@ async function checkAll() {
         icon="i-lucide-gamepad-2"
         title="No games yet"
         description="Games appear here once you add workshop items for them, or pick one in the sidebar."
-        :actions="[{ label: 'Add items', to: '/' }]"
+        :actions="[{ label: 'Add items', to: ROUTES.home }]"
       />
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <GameCard

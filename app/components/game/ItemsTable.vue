@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { GameItemRow } from '~/types/games'
+import { ROUTES } from '~/constants/routes'
 
 // The workshop items of a game: versions, active snapshot, link status and per-row actions.
 defineProps<{ rows: GameItemRow[], selected: Set<string>, allSelected: boolean }>()
@@ -51,7 +52,7 @@ const columns: TableColumn<GameItemRow>[] = [
           />
           <div class="min-w-0">
             <NuxtLink
-              :to="`/items/${row.original.item.id}`"
+              :to="ROUTES.item(row.original.item.id)"
               class="font-medium hover:underline"
             >
               {{ row.original.item.title || row.original.item.id }}

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { ROUTES } from '~/constants/routes'
 
 const { active } = useJobs()
 const { apps, itemCounts, refreshCounts } = useAppSelection()
@@ -17,25 +18,25 @@ function openGames() {
 }
 
 const nav = computed<NavigationMenuItem[]>(() => [
-  { label: 'Downloads', icon: 'i-lucide-download', to: '/', badge: active.value.length || undefined },
+  { label: 'Downloads', icon: 'i-lucide-download', to: ROUTES.home, badge: active.value.length || undefined },
   {
     label: 'Games',
     icon: 'i-lucide-gamepad-2',
     value: 'games',
     // The label shows the game list in the content; the chevron only folds the section.
-    to: '/apps',
+    to: ROUTES.games,
     exact: true,
     onSelect: openGames,
     // The game list scrolls on its own once there are many.
     ui: { childList: 'max-h-[40vh] overflow-y-auto' },
     children: apps.value.map(app => ({
       label: app.name ?? `App ${app.appId}`,
-      to: `/apps/${app.appId}`,
+      to: ROUTES.game(app.appId),
       badge: itemCounts.value[app.appId] ?? ''
     }))
   },
-  { label: 'Adapters', icon: 'i-lucide-puzzle', to: '/adapters' },
-  { label: 'Settings', icon: 'i-lucide-settings', to: '/settings' }
+  { label: 'Adapters', icon: 'i-lucide-puzzle', to: ROUTES.adapters },
+  { label: 'Settings', icon: 'i-lucide-settings', to: ROUTES.settings }
 ])
 </script>
 

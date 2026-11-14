@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AppRow } from '~/lib/db/schema'
+import { ROUTES } from '~/constants/routes'
 
 // A game in the Games list: store banner on the left, name and badges on the right.
 defineProps<{ app: AppRow & { items: number }, outdated: number }>()
@@ -7,7 +8,7 @@ defineProps<{ app: AppRow & { items: number }, outdated: number }>()
 
 <template>
   <NuxtLink
-    :to="`/apps/${app.appId}`"
+    :to="ROUTES.game(app.appId)"
     class="flex overflow-hidden rounded-lg border border-default bg-default transition-colors hover:bg-elevated/50"
   >
     <img

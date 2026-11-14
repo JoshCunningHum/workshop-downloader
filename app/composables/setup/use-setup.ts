@@ -1,6 +1,7 @@
 import { SetupStatus } from '~/constants/setup'
 import * as appIndex from '~/lib/services/app-index'
 import * as steamcmd from '~/lib/services/steamcmd'
+import { ROUTES } from '~/constants/routes'
 
 // First-run onboarding: the app stays on /setup until a Steam folder, a library folder,
 // SteamCMD and the app list (for the game selector) are all present. See middleware/ensure-setup.global.ts.
@@ -29,7 +30,7 @@ export function useSetup() {
     status.value = await firstIncomplete()
     if (status.value === SetupStatus.Finished) {
       initialized.value = true
-      await navigateTo('/')
+      await navigateTo(ROUTES.home)
     }
   }
 

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ROUTES } from '~/constants/routes'
+
 const adaptersApi = useAdapters()
 const { data: adapters } = useAsyncData('adapters', () => adaptersApi.list())
 </script>
@@ -14,7 +16,7 @@ const { data: adapters } = useAsyncData('adapters', () => adaptersApi.list())
         <UButton
           class="ms-auto shrink-0"
           size="xs"
-          to="/adapters/new"
+          :to="ROUTES.newAdapter()"
           icon="i-lucide-plus"
           label="New adapter"
         />
@@ -23,7 +25,7 @@ const { data: adapters } = useAsyncData('adapters', () => adaptersApi.list())
         <UPageCard
           v-for="adapter in adapters"
           :key="adapter.id"
-          :to="`/adapters/${adapter.id}`"
+          :to="ROUTES.adapter(adapter.id)"
           :title="adapter.name"
           :description="adapter.appId ? `AppID ${adapter.appId}` : 'Any game'"
         >

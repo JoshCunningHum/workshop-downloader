@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import * as steam from '~/lib/services/steam'
+import { ROUTES } from '~/constants/routes'
 
 const { collapsed = false } = defineProps<{ collapsed?: boolean }>()
 
@@ -24,7 +25,7 @@ const selected = computed(() => items.value.find(i => i.value === current.value)
 
 // Follow the game page that is open.
 watch(() => route.params.appId, (appId) => {
-  if (route.path.startsWith('/apps/') && appId) current.value = Number(appId)
+  if (route.path.startsWith(`${ROUTES.games}/`) && appId) current.value = Number(appId)
 }, { immediate: true })
 
 const search = ref('')
@@ -42,7 +43,7 @@ async function select(appId: number) {
     }
   }
   current.value = appId
-  return navigateTo(`/apps/${appId}`)
+  return navigateTo(ROUTES.game(appId))
 }
 
 /**
