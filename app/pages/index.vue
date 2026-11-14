@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ItemRow } from '~/lib/db/schema'
-import type { LiveJob } from '~/composables/useJobs'
+import type { ItemState, LiveJob } from '~/types/jobs'
 
 const jobsStore = useJobs()
 const { settings } = useSettings()

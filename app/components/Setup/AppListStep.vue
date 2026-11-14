@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AppEntry, AppIndexEvent } from '~/composables/useSteamAppIndex'
+import type { AppEntry, AppIndexEvent } from '~/types/steamcmd'
 
 const setup = useSetup()
 const index = useSteamAppIndex()

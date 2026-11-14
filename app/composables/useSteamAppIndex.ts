@@ -1,16 +1,8 @@
 import { Channel, invoke } from '@tauri-apps/api/core'
 import { count } from 'drizzle-orm'
 import { steamApps } from '~/lib/db/schema'
-
-// Mirrors src-tauri/src/steamcmd/appinfo.rs AppEntry and job.rs AppIndexEvent.
-export interface AppEntry { appId: number, name: string | null, kind: string | null }
-export type AppIndexEvent
-  = | { type: 'log', line: string }
-    | { type: 'package', count: number }
-    | { type: 'app', entry: AppEntry, done: number, total: number }
-
-// SQLite allows 999 bound variables per statement; 4 columns per row.
-const BATCH = 200
+import { APP_INDEX_BATCH } from '~/constants/apps'
+import type { AppEntry, AppIndexEvent } from '~/types/steamcmd'
 
 // The list of anonymously downloadable apps (Steam package 17906) the game selector searches.
 export function useSteamAppIndex() {
@@ -30,8 +22,8 @@ export function useSteamAppIndex() {
 
     const now = Date.now()
     await db().delete(steamApps)
-    for (let i = 0; i < entries.length; i += BATCH) {
-      await db().insert(steamApps).values(entries.slice(i, i + BATCH).map(e => ({
+    for (let i = 0; i < entries.length; i += APP_INDEX_BATCH) {
+      await db().insert(steamApps).values(entries.slice(i, i + APP_INDEX_BATCH).map(e => ({
         appId: e.appId,
         name: e.name,
         type: e.kind,

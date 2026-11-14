@@ -1,41 +1,9 @@
 import { invoke } from '@tauri-apps/api/core'
 import { expandTemplate } from '~/lib/adapters/engine'
 import type { AppRow } from '~/lib/db/schema'
-import type { ItemDetails } from './useSteamApi'
-
-// Mirrors src-tauri/src/mods.rs FoundFolder.
-interface FoundFolder {
-  itemId: string
-  path: string
-  kind: 'folder' | 'library' | 'link'
-  modified: number | null
-}
-
-export type ImportStatus
-  = | 'ready' // can be imported
-    | 'managed' // already a link into the library
-    | 'link' // a link pointing elsewhere; left alone
-    | 'notFound' // Steam doesn't know the id (or it's removed/private)
-    | 'otherGame' // a workshop item of another app
-    | 'exists' // that revision is already in the library
-
-export interface ImportCandidate {
-  itemId: string
-  path: string
-  status: ImportStatus
-  reason: string | null
-  details: ItemDetails | null
-  /** Revision recorded for the snapshot: the folder's newest file time, capped at Steam's. */
-  timeUpdated: number
-}
-
-const REASONS: Record<Exclude<ImportStatus, 'ready'>, string> = {
-  managed: 'Already managed by this app',
-  link: 'A link to a folder outside the library; left alone',
-  notFound: 'Not found on the Steam Workshop (removed, private, or not a workshop item)',
-  otherGame: 'A workshop item of a different game',
-  exists: 'This revision is already in the library'
-}
+import { IMPORT_SKIP_REASONS } from '~/constants/mods-import'
+import type { FoundFolder, ImportCandidate, ImportStatus } from '~/types/mods'
+import type { ItemDetails } from '~/types/steam'
 
 const sameFolder = (a: string, b: string) =>
   a.replace(/\\/g, '/').replace(/\/+$/, '') === b.replace(/\\/g, '/').replace(/\/+$/, '')
@@ -72,7 +40,7 @@ export function useModsImport() {
       const d = details.get(f.itemId) ?? null
       const timeUpdated = d ? Math.min(f.modified ?? d.timeUpdated, d.timeUpdated) : (f.modified ?? 0)
       const status = check(f, d, timeUpdated)
-      candidates.push({ itemId: f.itemId, path: f.path, status, reason: status === 'ready' ? null : REASONS[status], details: d, timeUpdated })
+      candidates.push({ itemId: f.itemId, path: f.path, status, reason: status === 'ready' ? null : IMPORT_SKIP_REASONS[status], details: d, timeUpdated })
     }
     return candidates
 

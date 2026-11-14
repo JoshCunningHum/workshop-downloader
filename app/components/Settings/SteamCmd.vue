@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Channel, invoke } from '@tauri-apps/api/core'
-import type { SteamCmdStatus } from '~/composables/useSetup'
+import type { SteamCmdStatus } from '~/types/steamcmd'
 
 const attempt = useAttempt()
 const toast = useToast()

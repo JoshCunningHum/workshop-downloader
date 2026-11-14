@@ -1,6 +1,7 @@
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import { apps, snapshots, workshopItems, type AppRow, type ItemRow } from '~/lib/db/schema'
-import type { InstalledGame, ItemDetails } from './useSteamApi'
+import { STORE_MAX_AGE_MS } from '~/constants/apps'
+import type { InstalledGame, ItemDetails } from '~/types/steam'
 
 // Apps (games) and workshop items: creating them from Web API details, and update checks.
 export function useCatalog() {
@@ -45,9 +46,6 @@ export function useCatalog() {
       }).onConflictDoNothing()
     }
   }
-
-  /** Store data older than this is fetched again. */
-  const STORE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
   const storeStale = (app: Pick<AppRow, 'storeCheckedAt'>) =>
     !app.storeCheckedAt || Date.now() - app.storeCheckedAt > STORE_MAX_AGE_MS

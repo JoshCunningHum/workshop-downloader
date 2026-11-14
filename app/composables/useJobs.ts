@@ -1,44 +1,8 @@
 import { Channel, invoke } from '@tauri-apps/api/core'
 import { desc, eq, inArray } from 'drizzle-orm'
 import { jobs, type JobStatus } from '~/lib/db/schema'
-
-// Mirrors src-tauri/src/steamcmd/job.rs JobEvent.
-export type GuardKind = 'email' | 'twoFactor'
-export type JobEvent
-  = | { type: 'queued' }
-    | { type: 'started', slot: number }
-    | { type: 'log', line: string }
-    | { type: 'progress', itemId: string, bytes: number, total: number }
-    | { type: 'itemDone', itemId: string, timeUpdated: number, path: string, sizeBytes: number }
-    | { type: 'itemFailed', itemId: string, reason: string }
-    | { type: 'loginOk' }
-    | { type: 'steamGuard', kind: GuardKind }
-    | { type: 'finished', status: Exclude<JobStatus, 'queued' | 'running' | 'interrupted'>, error: string | null }
-
-export interface LiveJob {
-  id: string
-  appId: number
-  itemIds: string[]
-  accountId: number | null
-  status: JobStatus
-  slot: number | null
-  progress: Record<string, { bytes: number, total: number }>
-  /** Sum of the items' Web API file sizes. */
-  bytesTotal: number
-  itemErrors: Record<string, string>
-  /** Items that finished downloading. */
-  itemsDone: Record<string, true>
-  log: string[]
-  error: string | null
-  guard: GuardKind | null
-  createdAt: number
-  startedAt: number | null
-  finishedAt: number | null
-}
-
-const MAX_LOG_LINES = 2000
-const LOG_TAIL_LINES = 200
-const ACTIVE: JobStatus[] = ['queued', 'running']
+import { ACTIVE_JOB_STATUSES as ACTIVE, HISTORY_LIMIT, LOG_TAIL_LINES, MAX_LOG_LINES } from '~/constants/jobs'
+import type { ItemState, JobEvent, LiveJob } from '~/types/jobs'
 
 const state = reactive({ jobs: [] as LiveJob[], loaded: false })
 // Events of one job are handled strictly in order (snapshot writes must finish before "finished").
@@ -57,7 +21,7 @@ export function useJobs() {
     if (state.loaded) return
     state.loaded = true
     await db().update(jobs).set({ status: 'interrupted', finishedAt: Date.now() }).where(inArray(jobs.status, ACTIVE))
-    const rows = await db().select().from(jobs).orderBy(desc(jobs.createdAt)).limit(50)
+    const rows = await db().select().from(jobs).orderBy(desc(jobs.createdAt)).limit(HISTORY_LIMIT)
     state.jobs.push(...rows.map(row => ({
       ...historyItems(row.status, row.itemIds, row.error),
       id: row.id,
@@ -272,8 +236,6 @@ function historyItems(status: JobStatus, itemIds: string[], error: string | null
   }
   return { itemErrors, itemsDone }
 }
-
-export type ItemState = 'queued' | 'waiting' | 'downloading' | 'done' | 'failed' | 'cancelled' | 'needs_guard' | 'interrupted'
 
 /** Where one item of a job stands, and why when it didn't finish. */
 export function itemState(job: LiveJob, itemId: string): { state: ItemState, reason: string | null } {

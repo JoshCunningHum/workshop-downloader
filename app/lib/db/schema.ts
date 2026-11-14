@@ -1,6 +1,6 @@
 import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import type { AdapterDefinition } from '~/types/adapters'
-import type { AppDetails } from '~/composables/useSteamApi'
+import type { AppDetails } from '~/types/steam'
 
 // Key/value app settings (library path, concurrency, poll interval). See composables/useSettings.ts.
 export const settings = sqliteTable('settings', {

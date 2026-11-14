@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { ItemDetails } from '~/composables/useSteamApi'
+import type { ItemDetails } from '~/types/steam'
 import type { LinkRow, SnapshotRow } from '~/lib/db/schema'
 
 // Shared across every tooltip: one Web API call per item per session.

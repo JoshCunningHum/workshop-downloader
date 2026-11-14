@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { SETUP_STEPS } from '~/constants/setup'
+
 const { status } = useSetup()
 </script>
 

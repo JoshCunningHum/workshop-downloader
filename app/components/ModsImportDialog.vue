@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AppRow } from '~/lib/db/schema'
-import type { ImportCandidate } from '~/composables/useModsImport'
+import type { ImportCandidate } from '~/types/mods'
 
 const props = defineProps<{ app: AppRow }>()
 const open = defineModel<boolean>('open', { default: false })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ItemDetails, Resolved } from '~/composables/useSteamApi'
+import type { ItemDetails, Resolved } from '~/types/steam'
 
 const steam = useSteamApi()
 const catalog = useCatalog()

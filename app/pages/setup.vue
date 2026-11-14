@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { SetupStatus } from '~/constants/setup'
+
 definePageMeta({ layout: 'blank' })
 
 const setup = useSetup()

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ItemRow } from '~/lib/db/schema'
-import type { LiveJob } from '~/composables/useJobs'
+import type { LiveJob } from '~/types/jobs'
 
 // One workshop item of a download, with its own status and progress.
 const props = defineProps<{ job: LiveJob, itemId: string, item?: ItemRow, appName?: string | null }>()

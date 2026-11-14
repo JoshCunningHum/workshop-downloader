@@ -1,36 +1,15 @@
 import { invoke } from '@tauri-apps/api/core'
 import { settings as settingsTable } from '~/lib/db/schema'
-
-export interface AppSettings {
-  /** Steam install folder; detected or picked during setup. */
-  steamPath: string | null
-  /** Where snapshots live. Must be on the same drive as the game for junctions to work well. */
-  libraryPath: string | null
-  /** Parallel SteamCMD workers. */
-  concurrency: number
-  /** Items per SteamCMD process; smaller batches spread better across workers. */
-  batchSize: number
-  /** Periodic update check (only when enabled). */
-  updateCheckEnabled: boolean
-  updateCheckMinutes: number
-}
-
-export const defaultSettings: AppSettings = {
-  steamPath: null,
-  libraryPath: null,
-  concurrency: 3,
-  batchSize: 10,
-  updateCheckEnabled: false,
-  updateCheckMinutes: 60
-}
+import { DEFAULT_SETTINGS } from '~/constants/settings'
+import type { AppSettings } from '~/types/settings'
 
 export function useSettings() {
-  const settings = useState<AppSettings>('settings', () => ({ ...defaultSettings }))
+  const settings = useState<AppSettings>('settings', () => ({ ...DEFAULT_SETTINGS }))
   const { db } = useDb()
 
   async function load() {
     const rows = await db().select().from(settingsTable)
-    const loaded = { ...defaultSettings }
+    const loaded = { ...DEFAULT_SETTINGS }
     for (const row of rows) {
       if (row.key in loaded) (loaded as Record<string, unknown>)[row.key] = row.value
     }
