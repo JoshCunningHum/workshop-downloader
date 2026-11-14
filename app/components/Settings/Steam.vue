@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
+import * as appIndex from '~/lib/services/app-index'
+import * as steam from '~/lib/services/steam'
 
 const { settings, save } = useSettings()
 const attempt = useAttempt()
@@ -13,13 +14,12 @@ const pickSteam = () => attempt('Choosing folder', async () => {
 })
 
 const detectSteam = () => attempt('Detecting Steam', async () => {
-  const root = await invoke<string | null>('steam_root_path')
+  const root = await steam.rootPath()
   if (!root) throw new Error('Steam was not found automatically')
   await save('steamPath', root)
 })
 
 // --- app list (game selector) ---
-const appIndex = useSteamAppIndex()
 const selection = useAppSelection()
 const { data: appIndexSize, refresh: refreshAppIndexSize } = useAsyncData('steam-app-index-size', () => appIndex.size())
 const rebuilding = ref(false)

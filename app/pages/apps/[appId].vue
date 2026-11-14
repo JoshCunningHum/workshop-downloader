@@ -1,31 +1,28 @@
 <script setup lang="ts">
 import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
-import { inArray } from 'drizzle-orm'
 import type { TableColumn } from '@nuxt/ui'
 import { expandTemplate, isCompatible } from '~/lib/adapters/engine'
-import { snapshots as snapshotsTable, type AppRow, type ItemRow, type LinkMode, type LinkRow, type SnapshotRow } from '~/lib/db/schema'
+import type { AppRow, ItemRow, LinkMode, LinkRow, SnapshotRow } from '~/lib/db/schema'
+import * as accountsApi from '~/lib/services/accounts'
+import * as snapshotsDb from '~/lib/services/snapshots'
+import * as steam from '~/lib/services/steam'
 
 const route = useRoute()
 const appId = Number(route.params.appId)
 
-const { db } = useDb()
 const catalog = useCatalog()
 const library = useLibrary()
 const adaptersApi = useAdapters()
-const accountsApi = useAccounts()
 const jobsStore = useJobs()
 const updates = useUpdateChecker()
-const steam = useSteamApi()
 const toast = useToast()
 
 const { data, refresh } = useAsyncData(`app-${appId}`, async () => {
   const app = await catalog.getApp(appId)
   if (!app) return null
   const items = await catalog.listItems(appId)
-  const snaps = items.length
-    ? await db().select().from(snapshotsTable).where(inArray(snapshotsTable.itemId, items.map(i => i.id)))
-    : []
+  const snaps = await snapshotsDb.listForItems(items.map(i => i.id))
   const links = await library.linksForApp(appId)
   return {
     app,

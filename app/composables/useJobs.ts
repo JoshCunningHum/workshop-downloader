@@ -1,6 +1,7 @@
-import { Channel, invoke } from '@tauri-apps/api/core'
-import { desc, eq, inArray } from 'drizzle-orm'
-import { jobs, type JobStatus } from '~/lib/db/schema'
+import { channel } from '~/lib/api/tauri'
+import type { JobStatus } from '~/lib/db/schema'
+import * as accounts from '~/lib/services/accounts'
+import * as jobsDb from '~/lib/services/jobs'
 import { ACTIVE_JOB_STATUSES as ACTIVE, HISTORY_LIMIT, LOG_TAIL_LINES, MAX_LOG_LINES } from '~/constants/jobs'
 import type { ItemState, JobEvent, LiveJob } from '~/types/jobs'
 
@@ -9,19 +10,17 @@ const state = reactive({ jobs: [] as LiveJob[], loaded: false })
 const chains = new Map<string, Promise<void>>()
 
 export function useJobs() {
-  const { db } = useDb()
   const { settings } = useSettings()
   const catalog = useCatalog()
   const library = useLibrary()
-  const accounts = useAccounts()
   const toast = useToast()
 
   /** Marks jobs left running by a previous session as interrupted and loads recent history. */
   async function loadHistory() {
     if (state.loaded) return
     state.loaded = true
-    await db().update(jobs).set({ status: 'interrupted', finishedAt: Date.now() }).where(inArray(jobs.status, ACTIVE))
-    const rows = await db().select().from(jobs).orderBy(desc(jobs.createdAt)).limit(HISTORY_LIMIT)
+    await jobsDb.interrupt(ACTIVE)
+    const rows = await jobsDb.recent(HISTORY_LIMIT)
     state.jobs.push(...rows.map(row => ({
       ...historyItems(row.status, row.itemIds, row.error),
       id: row.id,
@@ -62,7 +61,7 @@ export function useJobs() {
     const itemIds = items.map(i => i.id)
     const bytesTotal = items.reduce((sum, i) => sum + i.fileSize, 0)
 
-    await db().insert(jobs).values({
+    await jobsDb.insert({
       id,
       appId,
       itemIds,
@@ -77,28 +76,24 @@ export function useJobs() {
     })
     const job = state.jobs[0]!
 
-    const channel = new Channel<JobEvent>()
-    channel.onmessage = (event) => {
+    const onEvent = channel<JobEvent>((event) => {
       const next = (chains.get(id) ?? Promise.resolve())
         .then(() => handle(job, event))
         .catch((e) => {
           job.log.push(`[app] ${e instanceof Error ? e.message : String(e)}`)
         })
       chains.set(id, next)
-    }
+    })
 
     try {
-      await invoke('job_start', {
-        request: {
-          jobId: id,
-          appId,
-          items: items.map(i => ({ id: i.id, timeUpdated: i.remoteTimeUpdated, fileSize: i.fileSize })),
-          libraryPath: settings.value.libraryPath,
-          account: account?.username ?? null,
-          guardCode: guardCode ?? null
-        },
-        onEvent: channel
-      })
+      await jobsDb.start({
+        jobId: id,
+        appId,
+        items: items.map(i => ({ id: i.id, timeUpdated: i.remoteTimeUpdated, fileSize: i.fileSize })),
+        libraryPath: settings.value.libraryPath,
+        account: account?.username ?? null,
+        guardCode: guardCode ?? null
+      }, onEvent)
     } catch (e) {
       await handle(job, { type: 'finished', status: 'failed', error: e instanceof Error ? e.message : String(e) })
     }
@@ -114,7 +109,7 @@ export function useJobs() {
         job.status = 'running'
         job.slot = event.slot
         job.startedAt = Date.now()
-        await db().update(jobs).set({ status: 'running', workerSlot: event.slot, startedAt: job.startedAt }).where(eq(jobs.id, job.id))
+        await jobsDb.update(job.id, { status: 'running', workerSlot: event.slot, startedAt: job.startedAt })
         break
       case 'log':
         job.log.push(event.line)
@@ -172,13 +167,13 @@ export function useJobs() {
     job.error = event.error
     job.finishedAt = Date.now()
     const bytesDone = Object.values(job.progress).reduce((sum, p) => sum + p.bytes, 0)
-    await db().update(jobs).set({
+    await jobsDb.update(job.id, {
       status: event.status,
       error: event.error ?? (Object.keys(job.itemErrors).length ? Object.entries(job.itemErrors).map(([id, r]) => `${id}: ${r}`).join('\n') : null),
       bytesDone,
       logTail: job.log.slice(-LOG_TAIL_LINES).join('\n'),
       finishedAt: job.finishedAt
-    }).where(eq(jobs.id, job.id))
+    })
 
     if (event.status === 'needs_guard') {
       toast.add({ title: 'Steam Guard code needed', description: 'Enter the code on the Downloads page to continue.', color: 'warning' })
@@ -187,7 +182,7 @@ export function useJobs() {
     }
   }
 
-  const cancel = (jobId: string) => invoke<boolean>('job_cancel', { jobId })
+  const cancel = jobsDb.cancel
 
   /** Re-runs a job that stopped for Steam Guard with the code the user entered. */
   async function submitGuardCode(job: LiveJob, code: string) {
@@ -208,7 +203,7 @@ export function useJobs() {
 
   async function clearFinished() {
     const finished = state.jobs.filter(j => !ACTIVE.includes(j.status))
-    if (finished.length) await db().delete(jobs).where(inArray(jobs.id, finished.map(j => j.id)))
+    await jobsDb.removeMany(finished.map(j => j.id))
     state.jobs.splice(0, state.jobs.length, ...state.jobs.filter(j => ACTIVE.includes(j.status)))
   }
 

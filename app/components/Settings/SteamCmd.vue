@@ -1,22 +1,19 @@
 <script setup lang="ts">
-import { Channel, invoke } from '@tauri-apps/api/core'
-import type { SteamCmdStatus } from '~/types/steamcmd'
+import * as steamcmd from '~/lib/services/steamcmd'
 
 const attempt = useAttempt()
 const toast = useToast()
 const jobsStore = useJobs()
 
-const { data: steamcmd, refresh: refreshSteamCmd } = useAsyncData('steamcmd', () => invoke<SteamCmdStatus>('steamcmd_status'))
+const { data: status, refresh: refreshSteamCmd } = useAsyncData('steamcmd', () => steamcmd.status())
 const installLog = ref<string[]>([])
 const installing = ref(false)
 
 const install = (reinstall: boolean) => attempt('SteamCMD install', async () => {
   installing.value = true
   installLog.value = []
-  const channel = new Channel<string>()
-  channel.onmessage = line => installLog.value.push(line)
   try {
-    await invoke('steamcmd_install', { reinstall, onLog: channel })
+    await steamcmd.install(reinstall, line => installLog.value.push(line))
     toast.add({ title: 'SteamCMD is ready', color: 'success' })
   } finally {
     installing.value = false
@@ -33,14 +30,14 @@ const install = (reinstall: boolean) => attempt('SteamCMD install', async () => 
     >
       <p class="text-sm">
         <UBadge
-          :color="steamcmd?.installed ? 'success' : 'neutral'"
+          :color="status?.installed ? 'success' : 'neutral'"
           variant="subtle"
         >
-          {{ steamcmd?.installed ? 'installed' : 'not installed' }}
+          {{ status?.installed ? 'installed' : 'not installed' }}
         </UBadge>
-        <code class="ms-2 text-xs text-muted">{{ steamcmd?.root }}</code>
+        <code class="ms-2 text-xs text-muted">{{ status?.root }}</code>
         <OpenFolderButton
-          :path="steamcmd?.root"
+          :path="status?.root"
           size="xs"
           variant="ghost"
           class="ms-1"
@@ -54,7 +51,7 @@ const install = (reinstall: boolean) => attempt('SteamCMD install', async () => 
     >
       <div class="flex gap-2">
         <UButton
-          v-if="!steamcmd?.installed"
+          v-if="!status?.installed"
           label="Install now"
           :loading="installing"
           @click="install(false)"

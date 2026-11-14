@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import * as steam from '~/lib/services/steam'
+
 const { collapsed = false } = defineProps<{ collapsed?: boolean }>()
 
 const { apps, index, current, refresh } = useAppSelection()
 const catalog = useCatalog()
-const steam = useSteamApi()
 const toast = useToast()
 const route = useRoute()
 

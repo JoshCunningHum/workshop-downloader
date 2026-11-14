@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { invoke } from '@tauri-apps/api/core'
-import { desc, eq } from 'drizzle-orm'
 import { detectGameVersion, detectItemVersions, validateDefinition } from '~/lib/adapters/engine'
-import type { AdapterDefinition, FileContent } from '~/types/adapters'
-import { snapshots, workshopItems } from '~/lib/db/schema'
+import { readFiles } from '~/lib/services/adapters'
+import * as items from '~/lib/services/items'
+import * as snapshots from '~/lib/services/snapshots'
+import * as steam from '~/lib/services/steam'
+import type { AdapterDefinition } from '~/types/adapters'
 
 const route = useRoute()
 const isNew = route.params.id === 'new'
 
 const adaptersApi = useAdapters()
 const catalog = useCatalog()
-const steam = useSteamApi()
-const { db } = useDb()
 const toast = useToast()
 
 const builtin = ref(false)
@@ -59,12 +58,9 @@ async function remove() {
 }
 
 // --- test panel: runs the (unsaved) rules against a downloaded item and an app's install ---
-const readFiles = (root: string, globs: string[]) => invoke<FileContent[]>('read_files', { root, globs, maxBytes: 256 * 1024 })
-
 const { data: testData } = useAsyncData('adapter-test-data', async () => {
   const apps = await catalog.listApps()
-  const items = await db().select({ id: workshopItems.id, title: workshopItems.title, appId: workshopItems.appId }).from(workshopItems).orderBy(workshopItems.title)
-  return { apps, items }
+  return { apps, items: await items.listBrief() }
 })
 const testItemId = ref<string>()
 const testAppId = ref<number>()
@@ -81,7 +77,7 @@ const gameResult = ref<string | null>(null)
 async function testItem() {
   const item = await catalog.getItem(testItemId.value!)
   if (!item) return
-  const latest = (await db().select().from(snapshots).where(eq(snapshots.itemId, item.id)).orderBy(desc(snapshots.timeUpdated)).limit(1))[0]
+  const latest = await snapshots.latest(item.id)
   const versions = await detectItemVersions(def.value, { tags: item.tags, itemRoot: latest?.path, readFiles })
   itemResult.value = versions.length ? versions.join(', ') : `nothing found${latest ? '' : ' (no snapshot downloaded, only tags were checked)'}`
 }

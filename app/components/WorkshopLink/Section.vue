@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import * as steam from '~/lib/services/steam'
 import type { ItemDetails, Resolved } from '~/types/steam'
 
-const steam = useSteamApi()
 const catalog = useCatalog()
 const jobsStore = useJobs()
 const selection = useAppSelection()

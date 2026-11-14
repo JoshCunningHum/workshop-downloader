@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
+import * as steam from '~/lib/services/steam'
 
 const setup = useSetup()
 const { save } = useSettings()
-const steam = useSteamApi()
 const catalog = useCatalog()
 const selection = useAppSelection()
 
@@ -17,7 +16,7 @@ async function detect() {
   detecting.value = true
   error.value = null
   try {
-    const root = await invoke<string | null>('steam_root_path')
+    const root = await steam.rootPath()
     if (root) path.value = root
     else error.value = 'Steam was not found automatically. Choose its folder.'
   } catch (e) {

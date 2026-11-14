@@ -1,6 +1,9 @@
-import { invoke } from '@tauri-apps/api/core'
 import { expandTemplate } from '~/lib/adapters/engine'
 import type { AppRow } from '~/lib/db/schema'
+import * as links from '~/lib/services/links'
+import * as mods from '~/lib/services/mods'
+import * as snapshots from '~/lib/services/snapshots'
+import * as steam from '~/lib/services/steam'
 import { IMPORT_SKIP_REASONS } from '~/constants/mods-import'
 import type { FoundFolder, ImportCandidate, ImportStatus } from '~/types/mods'
 import type { ItemDetails } from '~/types/steam'
@@ -16,7 +19,6 @@ export function useModsImport() {
   const catalog = useCatalog()
   const library = useLibrary()
   const adapters = useAdapters()
-  const steam = useSteamApi()
 
   /** The app's mods folder with the template filled in, or null if it has none. */
   async function modsFolder(app: AppRow): Promise<string | null> {
@@ -28,7 +30,7 @@ export function useModsImport() {
   async function scan(app: AppRow): Promise<ImportCandidate[]> {
     const folder = await modsFolder(app)
     if (!folder) throw new Error('Set a mods folder first')
-    const found = await invoke<FoundFolder[]>('mods_scan', { modsPath: folder, libraryPath: settings.value.libraryPath })
+    const found = await mods.scan(folder, settings.value.libraryPath)
 
     const real = found.filter(f => f.kind === 'folder')
     const details = new Map((real.length ? await steam.itemDetails(real.map(f => f.itemId)) : []).map(d => [d.id, d]))
@@ -60,7 +62,7 @@ export function useModsImport() {
     const libraryPath = library.libraryPath()
     await catalog.upsertItems([candidate.details])
 
-    const path = await invoke<string>('mods_adopt', {
+    const path = await mods.adopt({
       source: candidate.path,
       libraryPath,
       appId: app.appId,
@@ -68,7 +70,7 @@ export function useModsImport() {
       timeUpdated: candidate.timeUpdated,
       mode: app.linkMode
     })
-    const sizeBytes = await invoke<{ bytes: number }>('snapshot_size', { path }).then(t => t.bytes).catch(() => 0)
+    const sizeBytes = await snapshots.folderSize(path).then(t => t.bytes).catch(() => 0)
     const snapshot = await library.recordSnapshot({ itemId: candidate.itemId, timeUpdated: candidate.timeUpdated, path, sizeBytes })
 
     const item = await catalog.getItem(candidate.itemId)
@@ -79,7 +81,7 @@ export function useModsImport() {
     await library.activate(snapshot.id)
     const linkPath = item ? await library.linkPathFor(app, item) : null
     if (linkPath && !sameFolder(linkPath, candidate.path)) {
-      await invoke('link_remove', { linkPath: candidate.path, libraryPath })
+      await links.removeLink(candidate.path, libraryPath)
     }
   }
 

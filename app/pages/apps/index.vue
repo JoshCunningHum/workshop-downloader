@@ -1,18 +1,11 @@
 <script setup lang="ts">
-import { count, eq } from 'drizzle-orm'
-import { workshopItems } from '~/lib/db/schema'
-
 const catalog = useCatalog()
 const updates = useUpdateChecker()
-const { db } = useDb()
 const toast = useToast()
 
 const { data: apps, refresh } = useAsyncData('apps', async () => {
-  const rows = await catalog.listApps()
-  return Promise.all(rows.map(async app => ({
-    ...app,
-    items: (await db().select({ n: count() }).from(workshopItems).where(eq(workshopItems.appId, app.appId)))[0]?.n ?? 0
-  })))
+  const [rows, counts] = await Promise.all([catalog.listApps(), catalog.itemCountsByApp()])
+  return rows.map(app => ({ ...app, items: counts[app.appId] ?? 0 }))
 })
 
 // Fill in Steam store data (banner, description, ...) for apps that lack it, one at a time,

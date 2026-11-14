@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Channel, invoke } from '@tauri-apps/api/core'
+import * as steamcmd from '~/lib/services/steamcmd'
 
 const setup = useSetup()
 
@@ -11,10 +11,8 @@ async function install() {
   installing.value = true
   error.value = null
   log.value = []
-  const channel = new Channel<string>()
-  channel.onmessage = line => log.value.push(line)
   try {
-    await invoke('steamcmd_install', { reinstall: false, onLog: channel })
+    await steamcmd.install(false, line => log.value.push(line))
     await setup.next()
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)

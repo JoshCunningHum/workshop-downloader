@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const accountsApi = useAccounts()
+import * as accountsApi from '~/lib/services/accounts'
+
 const attempt = useAttempt()
 const toast = useToast()
 

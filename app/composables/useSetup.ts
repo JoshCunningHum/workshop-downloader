@@ -1,6 +1,6 @@
-import { invoke } from '@tauri-apps/api/core'
 import { SetupStatus } from '~/constants/setup'
-import type { SteamCmdStatus } from '~/types/steamcmd'
+import * as appIndex from '~/lib/services/app-index'
+import * as steamcmd from '~/lib/services/steamcmd'
 
 // First-run onboarding: the app stays on /setup until a Steam folder, a library folder,
 // SteamCMD and the app list (for the game selector) are all present. See middleware/ensure-setup.global.ts.
@@ -14,9 +14,8 @@ export function useSetup() {
   async function firstIncomplete(): Promise<SetupStatus> {
     if (!settings.value.steamPath) return SetupStatus.Steam
     if (!settings.value.libraryPath) return SetupStatus.Library
-    const steamcmd = await invoke<SteamCmdStatus>('steamcmd_status')
-    if (!steamcmd.installed) return SetupStatus.SteamCmd
-    if (!await useSteamAppIndex().size()) return SetupStatus.AppList
+    if (!(await steamcmd.status()).installed) return SetupStatus.SteamCmd
+    if (!await appIndex.size()) return SetupStatus.AppList
     return SetupStatus.Finished
   }
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import * as appIndex from '~/lib/services/app-index'
 import type { AppEntry, AppIndexEvent } from '~/types/steamcmd'
 
 const setup = useSetup()
-const index = useSteamAppIndex()
 const selection = useAppSelection()
 
 const running = ref(false)
@@ -41,7 +41,7 @@ async function start() {
   log.value = []
   title.value = 'Asking Steam for the app list…'
   try {
-    const saved = await index.rebuild(onEvent)
+    const saved = await appIndex.rebuild(onEvent)
     title.value = `Saved ${saved} apps`
     await selection.refresh()
     await setup.next()

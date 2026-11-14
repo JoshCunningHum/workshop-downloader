@@ -1,4 +1,5 @@
 <script lang="ts">
+import * as steam from '~/lib/services/steam'
 import type { ItemDetails } from '~/types/steam'
 import type { LinkRow, SnapshotRow } from '~/lib/db/schema'
 
@@ -8,7 +9,7 @@ const detailsCache = new Map<string, Promise<ItemDetails | null>>()
 function fetchDetails(id: string): Promise<ItemDetails | null> {
   let pending = detailsCache.get(id)
   if (!pending) {
-    pending = useSteamApi().itemDetails([id]).then(list => list[0] ?? null)
+    pending = steam.itemDetails([id]).then(list => list[0] ?? null)
     pending.catch(() => detailsCache.delete(id))
     detailsCache.set(id, pending)
   }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { invoke } from '@tauri-apps/api/core'
 import type { ButtonProps } from '@nuxt/ui'
+import { openInFileManager } from '~/lib/services/files'
 
 // Shows a path in the system's default file manager (Explorer, Finder, Total Commander, ...).
 // A file is revealed in its folder; a path that doesn't exist yet opens its closest parent.
@@ -12,7 +12,7 @@ const props = withDefaults(defineProps<{
 
 const attempt = useAttempt()
 
-const open = () => attempt('Opening folder', () => invoke('open_in_file_manager', { path: props.path }))
+const open = () => attempt('Opening folder', () => openInFileManager(props.path!))
 </script>
 
 <template>

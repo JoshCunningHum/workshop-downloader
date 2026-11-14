@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { Channel, invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
+import * as files from '~/lib/services/files'
 
 // Exercises the fswatch sidecar: one-off size and a live watch of a folder.
-interface Totals { bytes: number, files: number }
 
 const path = ref('')
-const size = ref<Totals | null>(null)
-const live = ref<Totals | null>(null)
+const size = ref<files.Totals | null>(null)
+const live = ref<files.Totals | null>(null)
 const updates = ref(0)
 const watching = ref(false)
 const error = ref<string | null>(null)
@@ -21,7 +20,7 @@ async function pick() {
 async function measure() {
   error.value = null
   try {
-    size.value = await invoke<Totals>('fs_size', { path: path.value })
+    size.value = await files.size(path.value)
   } catch (e) {
     error.value = String(e)
   }
@@ -29,21 +28,19 @@ async function measure() {
 
 async function toggleWatch() {
   if (watching.value) {
-    await invoke('fs_unwatch', { id: WATCH_ID })
+    await files.unwatch(WATCH_ID)
     watching.value = false
     return
   }
-  const channel = new Channel<Totals>()
-  channel.onmessage = (totals) => {
+  await files.watch(WATCH_ID, [path.value], 500, (totals) => {
     live.value = totals
     updates.value++
-  }
-  await invoke('fs_watch', { id: WATCH_ID, paths: [path.value], intervalMs: 500, onEvent: channel })
+  })
   watching.value = true
 }
 
 onBeforeUnmount(() => {
-  if (watching.value) invoke('fs_unwatch', { id: WATCH_ID })
+  if (watching.value) files.unwatch(WATCH_ID)
 })
 </script>
 
