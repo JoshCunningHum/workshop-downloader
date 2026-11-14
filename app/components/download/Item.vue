@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { ITEM_STATE_COLORS } from '~/constants/downloads'
 import type { ItemRow } from '~/lib/db/schema'
 import type { LiveJob } from '~/types/jobs'
+import { ROUTES } from '~/constants/routes'
 
 // One workshop item of a download, with its own status and progress.
 const props = defineProps<{ job: LiveJob, itemId: string, item?: ItemRow, appName?: string | null }>()
@@ -22,17 +24,6 @@ const progress = computed(() => {
 // Red at 0%, yellow at 50%, green at 100%.
 const barColor = computed(() => `hsl(${(progress.value.percent ?? 0) * 1.2} 85% 45%)`)
 
-const COLORS = {
-  queued: 'neutral',
-  waiting: 'neutral',
-  downloading: 'primary',
-  done: 'success',
-  failed: 'error',
-  cancelled: 'neutral',
-  needs_guard: 'warning',
-  interrupted: 'neutral'
-} as const
-
 // Cancelling stops the SteamCMD process, which may be fetching other items too.
 const others = computed(() => props.job.itemIds.filter(id => id !== props.itemId && !props.job.itemsDone[id]).length)
 </script>
@@ -51,13 +42,13 @@ const others = computed(() => props.job.itemIds.filter(id => id !== props.itemId
       <div class="min-w-0 flex-1 space-y-1">
         <div class="flex items-center gap-2">
           <NuxtLink
-            :to="`/items/${itemId}`"
+            :to="ROUTES.item(itemId)"
             class="truncate text-sm font-medium hover:underline"
           >
             {{ item?.title || itemId }}
           </NuxtLink>
           <NuxtLink
-            :to="`/apps/${job.appId}`"
+            :to="ROUTES.game(job.appId)"
             class="shrink-0 truncate text-xs text-muted hover:underline"
           >
             {{ appName ?? `App ${job.appId}` }}
@@ -90,7 +81,7 @@ const others = computed(() => props.job.itemIds.filter(id => id !== props.itemId
     </WorkshopItemTooltip>
 
     <UBadge
-      :color="COLORS[status.state]"
+      :color="ITEM_STATE_COLORS[status.state]"
       variant="subtle"
       class="shrink-0"
     >
