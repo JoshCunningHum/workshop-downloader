@@ -23,6 +23,10 @@ const pickLibrary = () => attempt('Choosing folder', async () => {
           class="flex-1"
           placeholder="Not set"
         />
+        <OpenFolderButton
+          :path="settings.libraryPath"
+          size="md"
+        />
         <UButton
           label="Choose…"
           color="neutral"

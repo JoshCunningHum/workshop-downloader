@@ -67,8 +67,12 @@ onMounted(detect)
           class="w-full"
           placeholder="Paste a path or choose a folder"
         />
+        <OpenFolderButton
+          :path="path"
+          size="md"
+        />
         <UButton
-          icon="i-lucide-folder-open"
+          icon="i-lucide-folder-search"
           color="neutral"
           variant="outline"
           aria-label="Choose folder"

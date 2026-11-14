@@ -76,12 +76,23 @@ watch(open, (value) => {
   <UModal
     v-model:open="open"
     title="Import existing items"
-    :description="folder ?? undefined"
     :dismissible="!importing"
     :ui="{ content: 'max-w-3xl' }"
   >
     <template #body>
       <div class="space-y-4">
+        <div
+          v-if="folder"
+          class="flex items-center gap-1"
+        >
+          <code class="truncate text-xs text-muted">{{ folder }}</code>
+          <OpenFolderButton
+            :path="folder"
+            size="xs"
+            variant="ghost"
+          />
+        </div>
+
         <div
           v-if="scanning"
           class="flex items-center gap-2 text-sm"

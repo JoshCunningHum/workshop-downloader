@@ -1,4 +1,5 @@
 import type { AdapterDefinition, ExtractContext, ExtractRule, FileContent } from './types'
+import { queryEnvExt } from './envExt'
 import { queryJsonPath } from './jsonPath'
 
 // Rules are tried in order; the first rule that yields any value wins.
@@ -45,6 +46,7 @@ function fromFile(content: string, rule: Extract<ExtractRule, { source: 'file' }
   let values: string[]
   if (rule.xpath) values = xpathValues(content, rule.xpath)
   else if (rule.jsonPath) values = jsonValues(content, rule.jsonPath)
+  else if (rule.envExt) values = queryEnvExt(content, rule.envExt)
   else if (rule.regex) return matchAll(content, rule.regex, true)
   else return [content.trim()].filter(Boolean)
   return rule.regex ? values.flatMap(v => matchAll(v, rule.regex!, false)) : values
@@ -136,6 +138,7 @@ export function validateDefinition(value: unknown): string[] {
       if (!['tags', 'file', 'buildid'].includes(rule?.source)) errors.push(`${where}.source must be tags, file or buildid`)
       if (rule?.source === 'tags' && !rule.regex) errors.push(`${where}: tags rules need a regex`)
       if (rule?.source === 'file' && !rule.glob && !rule.path) errors.push(`${where}: file rules need a glob or path`)
+      if (rule?.source === 'file' && rule.envExt !== undefined && !rule.envExt.trim()) errors.push(`${where}: EnvExt rules need a field`)
       const pattern = (rule as { regex?: string })?.regex
       if (pattern) {
         try {

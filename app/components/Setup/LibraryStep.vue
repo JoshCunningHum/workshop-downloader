@@ -43,6 +43,10 @@ async function proceed() {
           placeholder="Not set"
           readonly
         />
+        <OpenFolderButton
+          :path="path"
+          size="md"
+        />
         <UButton
           label="Choose…"
           color="neutral"

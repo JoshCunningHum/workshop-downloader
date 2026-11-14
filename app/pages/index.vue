@@ -46,6 +46,26 @@ const history = computed(() => rows.value
   .filter(r => !ACTIVE_ORDER.includes(r.state))
   .sort((a, b) => (b.job.finishedAt ?? Infinity) - (a.job.finishedAt ?? Infinity)))
 
+// Finished downloads split into the ones that made it and the ones that didn't.
+const finished = computed(() => history.value.filter(r => r.state === 'done'))
+const failed = computed(() => history.value.filter(r => r.state !== 'done'))
+
+type Tab = 'active' | 'finished' | 'failed'
+const tab = ref<Tab>('active')
+const tabs = computed(() => [
+  { label: 'Active', value: 'active', icon: 'i-lucide-download', badge: String(active.value.length) },
+  { label: 'Finished', value: 'finished', icon: 'i-lucide-circle-check', badge: String(finished.value.length) },
+  { label: 'Failed', value: 'failed', icon: 'i-lucide-circle-x', badge: String(failed.value.length) }
+])
+// The selected tab takes its own colour: green for active, neutral for finished, red for failed.
+const TAB_COLOR = { active: 'primary', finished: 'neutral', failed: 'error' } as const
+const shown = computed(() => ({ active: active.value, finished: finished.value, failed: failed.value })[tab.value])
+const EMPTY: Record<Tab, { icon: string, title: string, description: string }> = {
+  active: { icon: 'i-lucide-download', title: 'Nothing downloading', description: 'Queued and downloading items show up here.' },
+  finished: { icon: 'i-lucide-circle-check', title: 'No finished downloads', description: 'Items that downloaded successfully show up here.' },
+  failed: { icon: 'i-lucide-circle-x', title: 'No failed downloads', description: 'Failed, cancelled and interrupted items show up here.' }
+}
+
 const guarded = computed(() => jobsStore.jobs.value.filter(j => j.guard))
 const guardCodes = ref<Record<string, string>>({})
 
@@ -113,54 +133,45 @@ watch(() => logJob.value?.log.length, async () => {
         </UBadge>
       </section>
 
-      <section>
-        <h2 class="text-sm font-semibold text-muted">
-          Active ({{ active.length }})
-        </h2>
+      <section class="space-y-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <UTabs
+            v-model="tab"
+            :items="tabs"
+            :content="false"
+            :color="TAB_COLOR[tab]"
+            size="sm"
+            :ui="{ list: 'w-fit' }"
+          />
+          <UTooltip
+            v-if="tab !== 'active' && shown.length"
+            text="Clears finished and failed downloads"
+          >
+            <UButton
+              class="ms-auto"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-trash-2"
+              label="Clear history"
+              @click="jobsStore.clearFinished()"
+            />
+          </UTooltip>
+        </div>
+
         <UEmpty
-          v-if="!active.length"
-          class="mt-3"
-          icon="i-lucide-download"
-          title="Nothing downloading"
-          description="Queued and downloading items show up here."
+          v-if="!shown.length"
+          :icon="EMPTY[tab].icon"
+          :title="EMPTY[tab].title"
+          :description="EMPTY[tab].description"
         />
         <ul
+          :key="tab"
           v-auto-animate
           class="divide-y divide-default"
         >
           <DownloadItem
-            v-for="row in active"
-            :key="row.key"
-            :job="row.job"
-            :item-id="row.itemId"
-            :item="items[row.itemId]"
-            :app-name="appNames[row.job.appId]"
-            @log="logJob = $event"
-          />
-        </ul>
-      </section>
-
-      <section v-if="history.length">
-        <div class="flex items-center">
-          <h2 class="text-sm font-semibold text-muted">
-            History ({{ history.length }})
-          </h2>
-          <UButton
-            class="ms-auto"
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-trash-2"
-            label="Clear"
-            @click="jobsStore.clearFinished()"
-          />
-        </div>
-        <ul
-          v-auto-animate
-          class="divide-y divide-default"
-        >
-          <DownloadItem
-            v-for="row in history"
+            v-for="row in shown"
             :key="row.key"
             :job="row.job"
             :item-id="row.itemId"

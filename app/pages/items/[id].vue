@@ -82,6 +82,11 @@ const setAutoUpdate = (on: boolean) => run('Saving', () => catalog.updateItem(id
             <p><span class="text-muted">Installed game version</span> {{ gameVersion ?? 'unknown' }}</p>
             <p v-if="data.link">
               <span class="text-muted">Linked at</span> <code>{{ data.link.linkPath }}</code>
+              <OpenFolderButton
+                :path="data.link.linkPath"
+                size="xs"
+                variant="ghost"
+              />
               <UBadge
                 class="ms-1"
                 size="sm"
@@ -188,6 +193,10 @@ const setAutoUpdate = (on: boolean) => run('Saving', () => catalog.updateItem(id
                 {{ s.path }}
               </p>
             </div>
+            <OpenFolderButton
+              :path="s.path"
+              size="xs"
+            />
             <UButton
               v-if="s.id !== data.item.activeSnapshotId || !data.link"
               size="xs"

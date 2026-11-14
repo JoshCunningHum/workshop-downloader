@@ -7,12 +7,18 @@ export function useAppSelection() {
   // Steam's anonymous dedicated-server apps (see useSteamAppIndex); searchable, not yet games.
   const index = useState<SteamAppRow[]>('apps:index', () => [])
   const current = useState<number | null>('apps:current', () => null)
+  // Workshop items per app, for the sidebar badges.
+  const itemCounts = useState<Record<number, number>>('apps:itemCounts', () => ({}))
   const catalog = useCatalog()
   const steamIndex = useSteamAppIndex()
 
-  async function refresh() {
-    [apps.value, index.value] = await Promise.all([catalog.listApps(), steamIndex.list()])
+  async function refreshCounts() {
+    itemCounts.value = await catalog.itemCountsByApp()
   }
 
-  return { apps, index, current, refresh }
+  async function refresh() {
+    [apps.value, index.value] = await Promise.all([catalog.listApps(), steamIndex.list(), refreshCounts()])
+  }
+
+  return { apps, index, current, itemCounts, refresh, refreshCounts }
 }

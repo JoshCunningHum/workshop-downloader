@@ -1,6 +1,7 @@
 mod accounts;
 mod adapters_fs;
 mod error;
+mod files;
 mod library;
 mod links;
 mod mods;
@@ -75,6 +76,7 @@ pub fn run() {
             accounts::account_has_password,
             accounts::account_delete_password,
             adapters_fs::read_files,
+            files::open_in_file_manager,
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

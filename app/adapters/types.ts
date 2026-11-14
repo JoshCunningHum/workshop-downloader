@@ -19,6 +19,8 @@ export type ExtractRule
     regex?: string
     jsonPath?: string
     xpath?: string
+    /** Field of a .env-like key=value file with {} lists (Paradox descriptor.mod); dotted for nested blocks. */
+    envExt?: string
   }
   | {
     source: 'buildid'

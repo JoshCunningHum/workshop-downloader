@@ -3,7 +3,7 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { inArray } from 'drizzle-orm'
 import type { TableColumn } from '@nuxt/ui'
-import { isCompatible } from '~/adapters/engine'
+import { expandTemplate, isCompatible } from '~/adapters/engine'
 import { snapshots as snapshotsTable, type AppRow, type ItemRow, type LinkMode, type LinkRow, type SnapshotRow } from '~/db/schema'
 
 const route = useRoute()
@@ -244,6 +244,12 @@ const save = () => run('Saving', async () => {
   toast.add({ title: 'Saved', color: 'success' })
 })
 
+// The mods folder as typed (template filled in), or the adapter's default when empty.
+const modsFolderPath = computed(() => {
+  const template = form.value?.modsPath || data.value?.adapter.modsPath
+  return template ? expandTemplate(template, { install: form.value?.installPath || null, appId }) : null
+})
+
 // The item list, or the game's settings (opened from the gear button).
 const view = ref<'items' | 'settings'>('items')
 </script>
@@ -298,11 +304,10 @@ const view = ref<'items' | 'settings'>('items')
         </div>
 
         <div class="flex flex-wrap items-center gap-3 text-sm">
-          <span>AppID {{ app.appId }}</span>
+          <span class="text-dimmed">{{ app.appId }}</span>
           <span class="text-muted">·</span>
           <span>
-            Installed version:
-            <strong>{{ gameVersion ?? 'unknown' }}</strong>
+            <strong>{{ gameVersion ?? 'unknown version' }}</strong>
             <span
               v-if="app.manualGameVersion"
               class="text-muted"
@@ -317,7 +322,8 @@ const view = ref<'items' | 'settings'>('items')
             :loading="busy"
             @click="detectGameVersion"
           />
-          <span class="text-muted">· adapter: {{ data?.adapter.name }}</span>
+          <span class="text-muted">·</span>
+          <UBadge :label="data?.adapter.name" icon="lucide:link-2" color="neutral" variant="soft" />
           <div class="ms-auto flex flex-wrap gap-2">
             <UButton
               size="xs"
@@ -497,6 +503,11 @@ const view = ref<'items' | 'settings'>('items')
             </template>
             <template #actions-cell="{ row }">
               <div class="flex justify-end gap-1">
+                <OpenFolderButton
+                  :path="row.original.link?.linkPath ?? row.original.active?.path ?? row.original.latest?.path"
+                  size="xs"
+                  variant="ghost"
+                />
                 <UButton
                   size="xs"
                   color="neutral"
@@ -562,6 +573,10 @@ const view = ref<'items' | 'settings'>('items')
                   v-model="form.installPath"
                   class="flex-1"
                 />
+                <OpenFolderButton
+                  :path="form.installPath"
+                  size="md"
+                />
                 <UButton
                   color="neutral"
                   variant="outline"
@@ -585,6 +600,10 @@ const view = ref<'items' | 'settings'>('items')
                   v-model="form.modsPath"
                   class="flex-1"
                   :placeholder="data?.adapter.modsPath"
+                />
+                <OpenFolderButton
+                  :path="modsFolderPath"
+                  size="md"
                 />
                 <UButton
                   color="neutral"

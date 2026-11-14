@@ -5,8 +5,8 @@ import type { ExtractRule } from '~/adapters/types'
 const props = defineProps<{ target: 'item' | 'game' }>()
 const rules = defineModel<ExtractRule[]>({ default: () => [] })
 
-type Picker = 'regex' | 'jsonPath' | 'xpath' | 'whole'
-type Loose = { source: ExtractRule['source'], glob?: string, path?: string, regex?: string, jsonPath?: string, xpath?: string }
+type Picker = 'regex' | 'jsonPath' | 'xpath' | 'envExt' | 'whole'
+type Loose = { source: ExtractRule['source'], glob?: string, path?: string, regex?: string, jsonPath?: string, xpath?: string, envExt?: string }
 
 const sources = [
   { label: 'Workshop tags', value: 'tags' },
@@ -17,6 +17,7 @@ const pickers = [
   { label: 'Regex', value: 'regex' },
   { label: 'JSON path', value: 'jsonPath' },
   { label: 'XPath', value: 'xpath' },
+  { label: 'EnvExt (key = value)', value: 'envExt' },
   { label: 'Whole file', value: 'whole' }
 ]
 
@@ -46,6 +47,7 @@ function setSource(i: number, value: unknown) {
 function picker(i: number): Picker {
   const r = loose(i)
   if (r.xpath !== undefined) return 'xpath'
+  if (r.envExt !== undefined) return 'envExt'
   if (r.jsonPath !== undefined) return 'jsonPath'
   if (r.regex !== undefined) return 'regex'
   return 'whole'
@@ -56,6 +58,7 @@ function setPicker(i: number, picked: unknown) {
   const r = { ...loose(i) }
   delete r.xpath
   delete r.jsonPath
+  delete r.envExt
   delete r.regex
   if (value !== 'whole') r[value] = ''
   const next = [...rules.value]
@@ -63,15 +66,20 @@ function setPicker(i: number, picked: unknown) {
   rules.value = next
 }
 
-// Value of the file path field (glob for items, path for the game) and of the xpath/jsonPath field.
+// Value of the file path field (glob for items, path for the game) and of the xpath/jsonPath/envExt field.
 const fileValue = (i: number) => loose(i)[fileKey.value] ?? ''
 const setFileValue = (i: number, value: unknown) => update(i, fileKey.value === 'glob' ? { glob: String(value) } : { path: String(value) })
-function exprValue(i: number) {
-  const r = loose(i)
-  return picker(i) === 'xpath' ? r.xpath ?? '' : r.jsonPath ?? ''
+
+type ExprPicker = 'xpath' | 'jsonPath' | 'envExt'
+const EXPR: Record<ExprPicker, { label: string, placeholder: string }> = {
+  xpath: { label: 'XPath', placeholder: '//supportedVersions/li' },
+  jsonPath: { label: 'JSON path', placeholder: '$.version' },
+  envExt: { label: 'Field', placeholder: 'supported_version' }
 }
-const exprPlaceholder = (i: number) => picker(i) === 'xpath' ? '//supportedVersions/li' : '$.version'
-const setExprValue = (i: number, value: unknown) => update(i, picker(i) === 'xpath' ? { xpath: String(value) } : { jsonPath: String(value) })
+const exprPicker = (i: number) => picker(i) as ExprPicker
+const hasExpr = (i: number) => picker(i) in EXPR
+const exprValue = (i: number) => loose(i)[exprPicker(i)] ?? ''
+const setExprValue = (i: number, value: unknown) => update(i, { [exprPicker(i)]: String(value) })
 
 function regexLabel(i: number) {
   const r = loose(i)
@@ -129,12 +137,12 @@ function add() {
           />
         </UFormField>
         <UFormField
-          v-if="picker(i) === 'xpath' || picker(i) === 'jsonPath'"
-          :label="picker(i) === 'xpath' ? 'XPath' : 'JSON path'"
+          v-if="hasExpr(i)"
+          :label="EXPR[exprPicker(i)].label"
         >
           <UInput
             :model-value="exprValue(i)"
-            :placeholder="exprPlaceholder(i)"
+            :placeholder="EXPR[exprPicker(i)].placeholder"
             @update:model-value="setExprValue(i, $event)"
           />
         </UFormField>

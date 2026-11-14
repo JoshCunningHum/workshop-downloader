@@ -83,6 +83,10 @@ const rebuildAppIndex = () => attempt('Updating the app list', async () => {
           class="flex-1"
           placeholder="Not set"
         />
+        <OpenFolderButton
+          :path="settings.steamPath"
+          size="md"
+        />
         <UButton
           label="Detect"
           color="neutral"

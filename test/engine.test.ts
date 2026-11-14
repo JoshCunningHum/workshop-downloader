@@ -42,7 +42,8 @@ describe('file extractor', () => {
       'About/About.xml': '<ModMetaData><supportedVersions><li>1.4</li><li>1.5</li></supportedVersions></ModMetaData>',
       'mod.json': '{"game": {"versions": ["2.0", "2.1"]}}',
       'broken.json': '{nope',
-      'version.txt': 'Requires game 3.2.1 or newer'
+      'version.txt': 'Requires game 3.2.1 or newer',
+      'descriptor.mod': 'name="Sample Mod"\ntags={\n "Utilities",\n "Gameplay"\n}\nsupported_version="v4.5.*"\n'
     },
     '/game': { 'Version.txt': '1.5.4104 rev435\n' }
   }
@@ -65,6 +66,13 @@ describe('file extractor', () => {
   it('post-processes xpath results with regex', async () => {
     const versions = await extractVersions([{ source: 'file', glob: 'About/About.xml', xpath: '//li', regex: '^1\\.(\\d)$' }], ctx(files, { itemRoot: '/snap' }), 'item')
     expect(versions).toEqual(['4', '5'])
+  })
+
+  it('reads EnvExt fields and post-processes them with regex', async () => {
+    const rule = { source: 'file' as const, glob: 'descriptor.mod', envExt: 'supported_version', regex: '^v?(\\d+\\.\\d+)' }
+    expect(await extractVersions([rule], ctx(files, { itemRoot: '/snap' }), 'item')).toEqual(['4.5'])
+    const tags = await extractVersions([{ source: 'file', glob: 'descriptor.mod', envExt: 'tags' }], ctx(files, { itemRoot: '/snap' }), 'item')
+    expect(tags).toEqual(['Utilities', 'Gameplay'])
   })
 
   it('returns nothing without a root or on unreadable files', async () => {
@@ -137,6 +145,9 @@ describe('helpers', () => {
       'itemVersions[0]: tags rules need a regex',
       'itemVersions[1]: file rules need a glob or path',
       'itemVersions[2].source must be tags, file or buildid'
+    ])
+    expect(validateDefinition({ id: 'x', name: 'X', itemVersions: [{ source: 'file', glob: 'descriptor.mod', envExt: ' ' }] })).toEqual([
+      'itemVersions[0]: EnvExt rules need a field'
     ])
   })
 })

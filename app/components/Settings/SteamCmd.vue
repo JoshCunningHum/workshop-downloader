@@ -39,6 +39,12 @@ const install = (reinstall: boolean) => attempt('SteamCMD install', async () => 
           {{ steamcmd?.installed ? 'installed' : 'not installed' }}
         </UBadge>
         <code class="ms-2 text-xs text-muted">{{ steamcmd?.root }}</code>
+        <OpenFolderButton
+          :path="steamcmd?.root"
+          size="xs"
+          variant="ghost"
+          class="ms-1"
+        />
       </p>
     </SettingsSection>
 

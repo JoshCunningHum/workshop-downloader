@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import { apps, snapshots, workshopItems, type AppRow, type ItemRow } from '~/db/schema'
 import type { InstalledGame, ItemDetails } from './useSteamApi'
 
@@ -81,6 +81,12 @@ export function useCatalog() {
     }
   }
 
+  /** Number of workshop items per app. */
+  async function itemCountsByApp(): Promise<Record<number, number>> {
+    const rows = await db().select({ appId: workshopItems.appId, n: count() }).from(workshopItems).groupBy(workshopItems.appId)
+    return Object.fromEntries(rows.map(r => [r.appId, r.n]))
+  }
+
   const listItems = (appId: number) =>
     db().select().from(workshopItems).where(eq(workshopItems.appId, appId)).orderBy(workshopItems.title)
 
@@ -133,5 +139,5 @@ export function useCatalog() {
     return db().select().from(workshopItems).where(and(eq(workshopItems.appId, appId), inArray(workshopItems.id, ids)))
   }
 
-  return { listApps, getApp, updateApp, ensureApp, importInstalledGames, storeStale, refreshStore, upsertItems, listItems, getItem, updateItem, latestSnapshotTimes, checkUpdates, removeItem, itemsByIds, itemsForApp }
+  return { listApps, getApp, updateApp, ensureApp, importInstalledGames, storeStale, refreshStore, upsertItems, itemCountsByApp, listItems, getItem, updateItem, latestSnapshotTimes, checkUpdates, removeItem, itemsByIds, itemsForApp }
 }
