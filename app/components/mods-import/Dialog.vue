@@ -132,51 +132,16 @@ watch(open, (value) => {
               so the game keeps seeing it. Nothing is downloaded.
             </p>
             <ul class="max-h-80 divide-y divide-default overflow-y-auto rounded-md border border-default">
-              <li
+              <ModsImportCandidateRow
                 v-for="c in ready"
                 :key="c.itemId"
-                class="flex items-center gap-3 p-2"
-              >
-                <UCheckbox
-                  :model-value="chosen.has(c.itemId)"
-                  :disabled="importing || c.itemId in results"
-                  @update:model-value="toggle(c.itemId, $event)"
-                />
-                <WorkshopItemTooltip
-                  :item-id="c.itemId"
-                  :details="c.details"
-                  class="flex flex-1 items-center gap-3"
-                >
-                  <WorkshopItemThumbnail
-                    :src="c.details?.previewUrl"
-                    :placeholder="false"
-                    class="size-9 rounded"
-                  />
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm">
-                      {{ c.details?.title || c.itemId }}
-                    </p>
-                    <p class="text-xs text-muted">
-                      {{ c.itemId }} · {{ formatBytes(c.details?.fileSize ?? 0) }}
-                      <template v-if="c.details && c.timeUpdated < c.details.timeUpdated">
-                        · older than Steam's latest
-                      </template>
-                    </p>
-                    <p
-                      v-if="results[c.itemId]"
-                      class="text-xs text-error"
-                    >
-                      {{ results[c.itemId] }}
-                    </p>
-                  </div>
-                </WorkshopItemTooltip>
-                <UIcon
-                  v-if="c.itemId in results"
-                  :name="results[c.itemId] ? 'i-lucide-circle-x' : 'i-lucide-circle-check'"
-                  :class="results[c.itemId] ? 'text-error' : 'text-success'"
-                  class="size-5"
-                />
-              </li>
+                :candidate="c"
+                :chosen="chosen.has(c.itemId)"
+                :disabled="importing || c.itemId in results"
+                :done="c.itemId in results"
+                :error="results[c.itemId] ?? null"
+                @toggle="toggle(c.itemId, $event)"
+              />
             </ul>
           </template>
 
