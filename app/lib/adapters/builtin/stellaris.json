@@ -1,0 +1,15 @@
+{
+  "id": "stellaris",
+  "name": "Stellaris",
+  "appId": 281990,
+  "modsPath": "",
+  "linkName": "{itemId}",
+  "gameVersion": [],
+  "itemVersions": [
+    {
+      "source": "file",
+      "glob": "descriptor.mod",
+      "envExt": "supported_version"
+    }
+  ]
+}

@@ -4,6 +4,6 @@ import { defineConfig } from 'drizzle-kit'
 // They are applied at runtime by app/db/migrate.ts, not by drizzle-kit.
 export default defineConfig({
   dialect: 'sqlite',
-  schema: './app/db/schema.ts',
+  schema: './app/lib/db/schema.ts',
   out: './drizzle'
 })

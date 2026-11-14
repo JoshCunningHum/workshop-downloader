@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadMigrations, migrate, type SqlExecutor } from '~/db/migrate'
+import { loadMigrations, migrate, type SqlExecutor } from '~/lib/db/migrate'
 
 function fakeDb() {
   const executed: string[] = []

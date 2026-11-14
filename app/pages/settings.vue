@@ -1,14 +1,6 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
-
-const CATEGORIES = [
-  { id: 'library', label: 'Library & downloads', icon: 'i-lucide-download' },
-  { id: 'steam', label: 'Steam', icon: 'i-simple-icons-steam' },
-  { id: 'accounts', label: 'Steam accounts', icon: 'i-lucide-users' },
-  { id: 'steamcmd', label: 'SteamCMD', icon: 'i-lucide-terminal' },
-  { id: 'diagnostics', label: 'Diagnostics', icon: 'i-lucide-activity' }
-] as const
-type Category = typeof CATEGORIES[number]['id']
+import { SETTINGS_CATEGORIES as CATEGORIES, type SettingsCategory as Category } from '~/constants/settings-categories'
 
 const route = useRoute()
 const router = useRouter()

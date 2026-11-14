@@ -1,4 +1,6 @@
-const SETUP_PAGE = '/setup'
+import { ROUTES } from '~/constants/routes'
+
+const SETUP_PAGE = ROUTES.setup
 
 // Keeps the app on /setup until onboarding is done, and out of it afterwards.
 export default defineNuxtRouteMiddleware(async (to) => {
@@ -8,6 +10,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const done = await useSetup().isInitialized()
   const inSetup = to.path === SETUP_PAGE
 
-  if (inSetup && done) return navigateTo('/')
+  if (inSetup && done) return navigateTo(ROUTES.home)
   if (!inSetup && !done) return navigateTo(SETUP_PAGE)
 })
