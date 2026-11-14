@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseWorkshopIds } from '~/utils/workshopInput'
+import { parseWorkshopIds } from '~/utils/workshop-input'
 
 describe('parseWorkshopIds', () => {
   it('reads ids and urls, keeps order, drops duplicates', () => {
