@@ -4,7 +4,7 @@ const route = useRoute()
 const appId = Number(route.params.appId)
 
 const page = useGamePage(appId)
-const { data, refresh, app, gameVersion, busy, run, checkUpdates, verifyLinks, detectGameVersion } = page
+const { data, refresh, app, gameVersion, busy, run, checkUpdates, verifyLinks, detectGameVersion, detectAdapter } = page
 const items = useGameItems(appId, page)
 const { rows, outdatedIds, selected, allSelected, selectedRows } = items
 
@@ -34,6 +34,7 @@ const view = ref<'items' | 'settings'>('items')
           :can-update="outdatedIds.length > 0"
           :settings-open="view === 'settings'"
           @detect="detectGameVersion"
+          @detect-adapter="detectAdapter"
           @update-outdated="items.download(outdatedIds)"
           @check-updates="checkUpdates"
           @verify-links="verifyLinks"

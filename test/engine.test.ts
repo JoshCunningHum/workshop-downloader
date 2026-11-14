@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import rimworld from '~/lib/adapters/builtin/rimworld.json'
 import generic from '~/lib/adapters/builtin/generic.json'
+import stellaris from '~/lib/adapters/builtin/stellaris.json'
 import { detectGameVersion, detectItemVersions, expandTemplate, extractVersions, isCompatible, safeFileName, validateDefinition } from '~/lib/adapters/engine'
 import type { AdapterDefinition, ExtractContext, FileContent } from '~/types/adapters'
 
@@ -112,9 +113,15 @@ describe('built-in adapters', () => {
     expect(await detectItemVersions(rw, ctx({}, { tags: ['Mod', '1.4'] }))).toEqual(['1.4'])
   })
 
+  it('stellaris reads supported_version from descriptor.mod', async () => {
+    const descriptor = 'name="Mod"\ntags={\n "Utilities"\n}\nsupported_version="v4.5.*"\n'
+    expect(await detectItemVersions(stellaris as AdapterDefinition, ctx({ '/snap': { 'descriptor.mod': descriptor } }, { itemRoot: '/snap' }))).toEqual(['v4.5.*'])
+  })
+
   it('built-in definitions are valid', () => {
     expect(validateDefinition(rimworld)).toEqual([])
     expect(validateDefinition(generic)).toEqual([])
+    expect(validateDefinition(stellaris)).toEqual([])
   })
 })
 

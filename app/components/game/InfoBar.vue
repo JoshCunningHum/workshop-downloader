@@ -12,6 +12,7 @@ defineProps<{
 }>()
 const emit = defineEmits<{
   'detect': []
+  'detect-adapter': []
   'update-outdated': []
   'check-updates': []
   'verify-links': []
@@ -41,6 +42,15 @@ const emit = defineEmits<{
     />
     <span class="text-muted">·</span>
     <UBadge :label="adapterName" icon="lucide:link-2" color="neutral" variant="soft" />
+    <UButton
+      size="xs"
+      color="neutral"
+      variant="outline"
+      icon="i-lucide-scan-search"
+      label="Detect"
+      :loading="busy"
+      @click="emit('detect-adapter')"
+    />
     <div class="ms-auto flex flex-wrap gap-2">
       <UButton
         size="xs"

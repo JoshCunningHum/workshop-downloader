@@ -65,7 +65,17 @@ export function useGamePage(appId: number) {
     toast.add({ title: version ? `Game version ${version}` : 'Could not detect the game version', color: version ? 'success' : 'warning' })
   })
 
-  return { data, refresh, app, gameVersion, busy, run, checkUpdates, verifyLinks, detectGameVersion }
+  const detectAdapter = () => run('Adapter detection', async () => {
+    const best = await adapters.detectBest(app.value!)
+    if (!best) {
+      toast.add({ title: 'No adapter found item versions', description: 'None of the adapters for this game could read a supported version from its items.', color: 'warning' })
+      return
+    }
+    await catalog.updateApp(appId, { adapterId: best.adapter.id })
+    toast.add({ title: `Adapter: ${best.adapter.name}`, description: `Found supported versions for ${best.matched} of ${best.total} item(s).`, color: 'success' })
+  })
+
+  return { data, refresh, app, gameVersion, busy, run, checkUpdates, verifyLinks, detectGameVersion, detectAdapter }
 }
 
 export type GamePage = ReturnType<typeof useGamePage>
