@@ -1,4 +1,4 @@
-import type { AdapterDefinition, ExtractContext, ExtractRule, FileContent } from './types'
+import type { AdapterDefinition, ExtractContext, ExtractRule, FileContent } from '~/types/adapters'
 import { queryEnvExt } from './envExt'
 import { queryJsonPath } from './jsonPath'
 

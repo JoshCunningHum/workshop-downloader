@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { count, eq } from 'drizzle-orm'
-import { workshopItems } from '~/db/schema'
+import { workshopItems } from '~/lib/db/schema'
 
 const catalog = useCatalog()
 const updates = useUpdateChecker()

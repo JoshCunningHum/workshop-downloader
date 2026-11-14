@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { invoke } from '@tauri-apps/api/core'
 import { desc, eq } from 'drizzle-orm'
-import { detectGameVersion, detectItemVersions, validateDefinition } from '~/adapters/engine'
-import type { AdapterDefinition, FileContent } from '~/adapters/types'
-import { snapshots, workshopItems } from '~/db/schema'
+import { detectGameVersion, detectItemVersions, validateDefinition } from '~/lib/adapters/engine'
+import type { AdapterDefinition, FileContent } from '~/types/adapters'
+import { snapshots, workshopItems } from '~/lib/db/schema'
 
 const route = useRoute()
 const isNew = route.params.id === 'new'

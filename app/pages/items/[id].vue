@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { isCompatible } from '~/adapters/engine'
+import { isCompatible } from '~/lib/adapters/engine'
 
 const route = useRoute()
 const id = String(route.params.id)

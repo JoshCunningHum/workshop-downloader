@@ -1,4 +1,4 @@
-import type { AdapterDefinition } from '../types'
+import type { AdapterDefinition } from '~/types/adapters'
 import generic from './generic.json'
 import rimworld from './rimworld.json'
 

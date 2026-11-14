@@ -1,6 +1,6 @@
 import { isTauri } from '@tauri-apps/api/core'
-import { openDb } from '~/db/client'
-import { migrate } from '~/db/migrate'
+import { openDb } from '~/lib/db/client'
+import { migrate } from '~/lib/db/migrate'
 
 // Opens the SQLite database and applies pending migrations before the app renders.
 export default defineNuxtPlugin(async () => {

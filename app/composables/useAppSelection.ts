@@ -1,4 +1,4 @@
-import type { AppRow, SteamAppRow } from '~/db/schema'
+import type { AppRow, SteamAppRow } from '~/lib/db/schema'
 
 // The games listed in the sidebar selector and the one currently selected.
 // Shared state so that anything creating apps (setup scan, main input) can refresh the list.

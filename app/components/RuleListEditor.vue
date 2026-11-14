@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ExtractRule } from '~/adapters/types'
+import type { ExtractRule } from '~/types/adapters'
 
 // Edits an ordered list of extractor rules. The first rule that yields a value wins.
 const props = defineProps<{ target: 'item' | 'game' }>()

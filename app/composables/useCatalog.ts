@@ -1,5 +1,5 @@
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
-import { apps, snapshots, workshopItems, type AppRow, type ItemRow } from '~/db/schema'
+import { apps, snapshots, workshopItems, type AppRow, type ItemRow } from '~/lib/db/schema'
 import type { InstalledGame, ItemDetails } from './useSteamApi'
 
 // Apps (games) and workshop items: creating them from Web API details, and update checks.

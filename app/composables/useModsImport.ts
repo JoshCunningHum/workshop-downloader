@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
-import { expandTemplate } from '~/adapters/engine'
-import type { AppRow } from '~/db/schema'
+import { expandTemplate } from '~/lib/adapters/engine'
+import type { AppRow } from '~/lib/db/schema'
 import type { ItemDetails } from './useSteamApi'
 
 // Mirrors src-tauri/src/mods.rs FoundFolder.

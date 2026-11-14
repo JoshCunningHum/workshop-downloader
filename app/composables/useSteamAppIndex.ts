@@ -1,6 +1,6 @@
 import { Channel, invoke } from '@tauri-apps/api/core'
 import { count } from 'drizzle-orm'
-import { steamApps } from '~/db/schema'
+import { steamApps } from '~/lib/db/schema'
 
 // Mirrors src-tauri/src/steamcmd/appinfo.rs AppEntry and job.rs AppIndexEvent.
 export interface AppEntry { appId: number, name: string | null, kind: string | null }

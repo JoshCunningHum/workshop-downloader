@@ -1,9 +1,9 @@
 import { invoke } from '@tauri-apps/api/core'
 import { join } from '@tauri-apps/api/path'
 import { desc, eq, inArray } from 'drizzle-orm'
-import { expandTemplate } from '~/adapters/engine'
-import type { AdapterDefinition } from '~/adapters/types'
-import { links, snapshots, workshopItems, type AppRow, type ItemRow, type LinkStatus, type SnapshotRow } from '~/db/schema'
+import { expandTemplate } from '~/lib/adapters/engine'
+import type { AdapterDefinition } from '~/types/adapters'
+import { links, snapshots, workshopItems, type AppRow, type ItemRow, type LinkStatus, type SnapshotRow } from '~/lib/db/schema'
 
 // Snapshots and the links that point the game's mod folder at the active one.
 export function useLibrary() {

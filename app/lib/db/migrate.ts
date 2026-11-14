@@ -11,7 +11,7 @@ export interface SqlExecutor {
   select<T>(query: string, bindValues?: unknown[]): Promise<T>
 }
 
-const bundled = import.meta.glob<string>('../../drizzle/*.sql', {
+const bundled = import.meta.glob<string>('../../../drizzle/*.sql', {
   query: '?raw',
   import: 'default',
   eager: true

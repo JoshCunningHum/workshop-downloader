@@ -3,8 +3,8 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { inArray } from 'drizzle-orm'
 import type { TableColumn } from '@nuxt/ui'
-import { expandTemplate, isCompatible } from '~/adapters/engine'
-import { snapshots as snapshotsTable, type AppRow, type ItemRow, type LinkMode, type LinkRow, type SnapshotRow } from '~/db/schema'
+import { expandTemplate, isCompatible } from '~/lib/adapters/engine'
+import { snapshots as snapshotsTable, type AppRow, type ItemRow, type LinkMode, type LinkRow, type SnapshotRow } from '~/lib/db/schema'
 
 const route = useRoute()
 const appId = Number(route.params.appId)

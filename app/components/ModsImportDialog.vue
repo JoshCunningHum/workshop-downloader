@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AppRow } from '~/db/schema'
+import type { AppRow } from '~/lib/db/schema'
 import type { ImportCandidate } from '~/composables/useModsImport'
 
 const props = defineProps<{ app: AppRow }>()

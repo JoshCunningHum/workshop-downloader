@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import { settings as settingsTable } from '~/db/schema'
+import { settings as settingsTable } from '~/lib/db/schema'
 
 export interface AppSettings {
   /** Steam install folder; detected or picked during setup. */

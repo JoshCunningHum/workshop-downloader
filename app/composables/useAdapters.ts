@@ -1,9 +1,9 @@
 import { invoke } from '@tauri-apps/api/core'
 import { eq } from 'drizzle-orm'
-import { builtinAdapters } from '~/adapters/builtin'
-import { detectGameVersion, detectItemVersions } from '~/adapters/engine'
-import type { AdapterDefinition, ExtractContext, FileContent } from '~/adapters/types'
-import { adapters, apps, type AppRow, type ItemRow } from '~/db/schema'
+import { builtinAdapters } from '~/lib/adapters/builtin'
+import { detectGameVersion, detectItemVersions } from '~/lib/adapters/engine'
+import type { AdapterDefinition, ExtractContext, FileContent } from '~/types/adapters'
+import { adapters, apps, type AppRow, type ItemRow } from '~/lib/db/schema'
 
 const readFiles = (root: string, globs: string[]) =>
   invoke<FileContent[]>('read_files', { root, globs, maxBytes: 256 * 1024 })

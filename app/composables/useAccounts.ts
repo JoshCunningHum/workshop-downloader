@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { eq } from 'drizzle-orm'
-import { apps, steamAccounts } from '~/db/schema'
+import { apps, steamAccounts } from '~/lib/db/schema'
 
 // Steam accounts: usernames in the DB, passwords in the OS keyring (via Rust).
 export function useAccounts() {

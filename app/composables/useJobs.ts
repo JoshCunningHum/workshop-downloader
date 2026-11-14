@@ -1,6 +1,6 @@
 import { Channel, invoke } from '@tauri-apps/api/core'
 import { desc, eq, inArray } from 'drizzle-orm'
-import { jobs, type JobStatus } from '~/db/schema'
+import { jobs, type JobStatus } from '~/lib/db/schema'
 
 // Mirrors src-tauri/src/steamcmd/job.rs JobEvent.
 export type GuardKind = 'email' | 'twoFactor'

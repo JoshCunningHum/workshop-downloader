@@ -1,4 +1,4 @@
-import type { Db } from '~/db/client'
+import type { Db } from '~/lib/db/client'
 
 let instance: Db | undefined
 

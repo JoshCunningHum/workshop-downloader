@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { ItemDetails } from '~/composables/useSteamApi'
-import type { LinkRow, SnapshotRow } from '~/db/schema'
+import type { LinkRow, SnapshotRow } from '~/lib/db/schema'
 
 // Shared across every tooltip: one Web API call per item per session.
 const detailsCache = new Map<string, Promise<ItemDetails | null>>()
