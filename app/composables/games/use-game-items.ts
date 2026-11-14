@@ -34,12 +34,26 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'gameV
   })
   const outdatedIds = computed(() => rows.value.filter(r => r.updateAvailable).map(r => r.item.id))
 
+  // The table shows the rows whose title or id contains the search text.
+  const search = ref('')
+  const visibleRows = computed(() => {
+    const needle = search.value.trim().toLowerCase()
+    if (!needle) return rows.value
+    return rows.value.filter(r => r.item.title.toLowerCase().includes(needle) || r.item.id.includes(needle))
+  })
+
   const selected = ref(new Set<string>())
-  const allSelected = computed(() => rows.value.length > 0 && selected.value.size === rows.value.length)
+  const allSelected = computed(() => visibleRows.value.length > 0 && visibleRows.value.every(r => selected.value.has(r.item.id)))
   const selectedRows = () => rows.value.filter(r => selected.value.has(r.item.id))
 
+  /** Ticks or unticks the visible rows (others keep their state). */
   function toggleAll(on: boolean | 'indeterminate') {
-    selected.value = on === true ? new Set(rows.value.map(r => r.item.id)) : new Set()
+    const next = new Set(selected.value)
+    for (const r of visibleRows.value) {
+      if (on === true) next.add(r.item.id)
+      else next.delete(r.item.id)
+    }
+    selected.value = next
   }
 
   function toggle(id: string, on: boolean | 'indeterminate') {
@@ -81,5 +95,5 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'gameV
     })
   }
 
-  return { rows, outdatedIds, selected, allSelected, selectedRows, toggle, toggleAll, download, link, unlink, remove }
+  return { rows, visibleRows, search, outdatedIds, selected, allSelected, selectedRows, toggle, toggleAll, download, link, unlink, remove }
 }

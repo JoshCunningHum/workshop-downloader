@@ -4,24 +4,26 @@ import type { ItemRow } from '~/lib/db/schema'
 import type { DownloadRow, DownloadTab } from '~/types/downloads'
 import type { LiveJob } from '~/types/jobs'
 
-// The Active / Finished / Failed tabs and the items in the selected one.
+// The Queue / Active / Finished / Failed tabs and the items in the selected one.
 const props = defineProps<{
-  rows: Record<DownloadTab, DownloadRow[]>
+  rows: Record<Exclude<DownloadTab, 'queue'>, DownloadRow[]>
   items: Record<string, ItemRow>
   appNames: Record<number, string | null>
 }>()
 const emit = defineEmits<{ log: [job: LiveJob] }>()
 
 const jobsStore = useJobs()
+// Shared with the queue, so pasting a link switches to the Queue tab.
+const { tab, entries } = useDownloadQueue()
 
-const tab = ref<DownloadTab>('active')
+const count = (value: DownloadTab) => value === 'queue' ? entries.value.length : props.rows[value].length
 const tabs = computed(() => (Object.keys(DOWNLOAD_TABS) as DownloadTab[]).map(value => ({
   label: DOWNLOAD_TABS[value].label,
   value,
   icon: DOWNLOAD_TABS[value].icon,
-  badge: String(props.rows[value].length)
+  badge: String(count(value))
 })))
-const shown = computed(() => props.rows[tab.value])
+const shown = computed(() => tab.value === 'queue' ? [] : props.rows[tab.value])
 const empty = computed(() => DOWNLOAD_TABS[tab.value])
 </script>
 
@@ -37,7 +39,7 @@ const empty = computed(() => DOWNLOAD_TABS[tab.value])
         :ui="{ list: 'w-fit' }"
       />
       <UTooltip
-        v-if="tab !== 'active' && shown.length"
+        v-if="(tab === 'finished' || tab === 'failed') && shown.length"
         text="Clears finished and failed downloads"
       >
         <UButton
@@ -52,13 +54,16 @@ const empty = computed(() => DOWNLOAD_TABS[tab.value])
       </UTooltip>
     </div>
 
+    <DownloadQueueList v-if="tab === 'queue'" />
+
     <UEmpty
-      v-if="!shown.length"
+      v-else-if="!shown.length"
       :icon="empty.icon"
       :title="empty.empty.title"
       :description="empty.empty.description"
     />
     <ul
+      v-if="tab !== 'queue'"
       :key="tab"
       v-auto-animate
       class="divide-y divide-default"

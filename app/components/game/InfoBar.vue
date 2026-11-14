@@ -10,6 +10,7 @@ defineProps<{
   canUpdate: boolean
   settingsOpen: boolean
 }>()
+const search = defineModel<string>('search', { default: '' })
 const emit = defineEmits<{
   'detect': []
   'detect-adapter': []
@@ -52,6 +53,13 @@ const emit = defineEmits<{
       @click="emit('detect-adapter')"
     />
     <div class="ms-auto flex flex-wrap gap-2">
+      <UInput
+        v-model="search"
+        size="xs"
+        icon="i-lucide-search"
+        placeholder="Search ..."
+        class="w-40"
+      />
       <UButton
         size="xs"
         icon="i-lucide-download"

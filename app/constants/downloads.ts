@@ -5,7 +5,8 @@ import type { ItemState } from '~/types/jobs'
 export const ACTIVE_ORDER: ItemState[] = ['downloading', 'waiting', 'queued']
 
 /** The tabs of the Downloads page; the selected tab takes its colour. */
-export const DOWNLOAD_TABS: Record<DownloadTab, { label: string, icon: string, color: 'primary' | 'neutral' | 'error', empty: { title: string, description: string } }> = {
+export const DOWNLOAD_TABS: Record<DownloadTab, { label: string, icon: string, color: 'primary' | 'neutral' | 'error' | 'info', empty: { title: string, description: string } }> = {
+  queue: { label: 'Queue', icon: 'i-lucide-list-plus', color: 'info', empty: { title: 'Queue is empty', description: 'Paste workshop links or ids to queue them.' } },
   active: { label: 'Active', icon: 'i-lucide-download', color: 'primary', empty: { title: 'Nothing downloading', description: 'Queued and downloading items show up here.' } },
   finished: { label: 'Finished', icon: 'i-lucide-circle-check', color: 'neutral', empty: { title: 'No finished downloads', description: 'Items that downloaded successfully show up here.' } },
   failed: { label: 'Failed', icon: 'i-lucide-circle-x', color: 'error', empty: { title: 'No failed downloads', description: 'Failed, cancelled and interrupted items show up here.' } }
