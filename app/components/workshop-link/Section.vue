@@ -1,16 +1,31 @@
 <script setup lang="ts">
 import { ROUTES } from '~/constants/routes'
 
-// Paste workshop links or ids, resolve them, pick items per game and queue downloads.
-const emit = defineEmits<{ queued: [] }>()
-
+// Paste workshop links or ids (or press Ctrl/⌘+V anywhere on the page): they're resolved with
+// Steam and added to the download queue.
 const { settings } = useSettings()
-const {
-  input, ids, invalid, resolving, queuing, resolved, skipDownloaded, latest, appNames, excluded,
-  groups, problems, isCurrent, downloadCount, resolve, toggle, queue
-} = useWorkshopResolve(() => emit('queued'))
+const queue = useDownloadQueue()
+const toast = useToast()
+const route = useRoute()
+
+const input = ref('')
+const ids = computed(() => parseWorkshopIds(input.value))
+const invalid = computed(() => !!input.value.trim() && !ids.value.length)
 
 const openSettings = [{ label: 'Open settings', to: ROUTES.settings }]
+
+async function addToQueue() {
+  if (!ids.value.length) return
+  const added = await queue.add(input.value)
+  if (!added) return
+  input.value = ''
+  const onDownloads = route.path === ROUTES.home
+  toast.add({
+    title: `Added ${added} item(s) to the queue`,
+    color: 'success',
+    actions: onDownloads ? undefined : [{ label: 'View queue', onClick: () => navigateTo(ROUTES.home) }]
+  })
+}
 </script>
 
 <template>
@@ -19,14 +34,14 @@ const openSettings = [{ label: 'Open settings', to: ROUTES.settings }]
       <WorkshopLinkInput
         v-model="input"
         class="flex-1"
-        @submit="resolve"
+        @submit="addToQueue"
       />
       <UButton
-        icon="i-lucide-search"
-        :label="`Resolve${ids.length ? ` ${ids.length}` : ''}`"
-        :loading="resolving"
+        icon="i-lucide-list-plus"
+        :label="`Add to queue${ids.length ? ` (${ids.length})` : ''}`"
+        :loading="queue.adding.value"
         :disabled="!ids.length"
-        @click="resolve"
+        @click="addToQueue"
       />
     </div>
 
@@ -47,66 +62,5 @@ const openSettings = [{ label: 'Open settings', to: ROUTES.settings }]
       description="Choose where snapshots are stored before downloading."
       :actions="openSettings"
     />
-
-    <template v-if="resolved">
-      <div class="flex flex-wrap items-center gap-3">
-        <USwitch
-          v-model="skipDownloaded"
-          label="Skip items whose latest revision is already downloaded"
-        />
-        <span
-          v-if="resolved.collections.length"
-          class="text-sm text-muted"
-        >
-          Expanded {{ resolved.collections.length }} collection(s).
-        </span>
-      </div>
-
-      <WorkshopLinkResolvedGroup
-        v-for="group in groups"
-        :key="group.appId"
-        :group="group"
-        :app-name="appNames[group.appId]"
-        :excluded="excluded"
-        :latest="latest"
-        :is-current="isCurrent"
-        :download-count="downloadCount(group.items)"
-        :queuing="queuing"
-        :can-download="!!settings.libraryPath"
-        @download="queue([group.appId])"
-        @toggle="toggle"
-      />
-
-      <div
-        v-if="groups.length > 1"
-        class="flex justify-end"
-      >
-        <UButton
-          icon="i-lucide-download"
-          label="Download all groups"
-          :loading="queuing"
-          :disabled="!settings.libraryPath"
-          @click="queue(groups.map(g => g.appId))"
-        />
-      </div>
-
-      <UAlert
-        v-if="problems.length"
-        color="warning"
-        variant="subtle"
-        title="Not downloadable"
-      >
-        <template #description>
-          <ul>
-            <li
-              v-for="item in problems"
-              :key="item.id"
-            >
-              {{ item.id }}: {{ item.result === 9 ? 'not found (removed or private)' : `Steam result ${item.result}` }}
-            </li>
-          </ul>
-        </template>
-      </UAlert>
-    </template>
   </section>
 </template>
