@@ -6,7 +6,7 @@ const appId = Number(route.params.appId)
 const page = useGamePage(appId)
 const { data, refresh, app, gameVersion, busy, run, checkUpdates, verifyLinks, detectGameVersion, detectAdapter } = page
 const items = useGameItems(appId, page)
-const { rows, outdatedIds, selected, allSelected, selectedRows } = items
+const { visibleRows, search, outdatedIds, selected, allSelected, selectedRows } = items
 
 // The item list, or the game's settings (opened from the gear button).
 const view = ref<'items' | 'settings'>('items')
@@ -15,7 +15,7 @@ const view = ref<'items' | 'settings'>('items')
 <template>
   <UDashboardPanel>
     <template #body>
-      <WorkshopLinkSection @queued="refresh" />
+      <WorkshopLinkSection />
 
       <UEmpty
         v-if="!app || !data"
@@ -27,6 +27,7 @@ const view = ref<'items' | 'settings'>('items')
         <GameStoreHeader :app="app" />
 
         <GameInfoBar
+          v-model:search="search"
           :app="app"
           :game-version="gameVersion"
           :adapter-name="data.adapter.name"
@@ -50,7 +51,7 @@ const view = ref<'items' | 'settings'>('items')
             @remove="items.remove(selectedRows())"
           />
           <GameItemsTable
-            :rows="rows"
+            :rows="visibleRows"
             :selected="selected"
             :all-selected="allSelected"
             @toggle="items.toggle"
