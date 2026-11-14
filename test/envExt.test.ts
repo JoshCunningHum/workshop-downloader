@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseEnvExt, queryEnvExt } from '~/adapters/envExt'
+import { parseEnvExt, queryEnvExt } from '~/lib/adapters/envExt'
 
 const descriptor = `version="1.0"
 tags={

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import rimworld from '~/adapters/builtin/rimworld.json'
-import generic from '~/adapters/builtin/generic.json'
-import { detectGameVersion, detectItemVersions, expandTemplate, extractVersions, isCompatible, safeFileName, validateDefinition } from '~/adapters/engine'
-import type { AdapterDefinition, ExtractContext, FileContent } from '~/adapters/types'
+import rimworld from '~/lib/adapters/builtin/rimworld.json'
+import generic from '~/lib/adapters/builtin/generic.json'
+import { detectGameVersion, detectItemVersions, expandTemplate, extractVersions, isCompatible, safeFileName, validateDefinition } from '~/lib/adapters/engine'
+import type { AdapterDefinition, ExtractContext, FileContent } from '~/types/adapters'
 
 // In-memory file system: { root: { relativePath: content } }. Globs are matched literally
 // except for a trailing "*.ext" wildcard, which is all these tests need.
