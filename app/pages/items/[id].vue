@@ -60,12 +60,11 @@ const setAutoUpdate = (on: boolean) => run('Saving', () => catalog.updateItem(id
 
       <template v-else>
         <div class="flex gap-4">
-          <img
-            v-if="data.item.previewUrl"
+          <WorkshopItemThumbnail
             :src="data.item.previewUrl"
-            alt=""
-            class="size-28 rounded object-cover"
-          >
+            :placeholder="false"
+            class="size-28 rounded"
+          />
           <div class="space-y-1 text-sm">
             <p class="text-base font-semibold">
               {{ data.item.title || data.item.id }}

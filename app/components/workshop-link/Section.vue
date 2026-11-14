@@ -198,12 +198,11 @@ watch(input, () => {
               :details="item"
               class="flex flex-1 items-center gap-3"
             >
-              <img
-                v-if="item.previewUrl"
+              <WorkshopItemThumbnail
                 :src="item.previewUrl"
-                alt=""
-                class="size-10 rounded object-cover"
-              >
+                :placeholder="false"
+                class="size-10 rounded"
+              />
               <div class="min-w-0 flex-1">
                 <p class="truncate">
                   {{ item.title || item.id }}

@@ -420,22 +420,10 @@ const view = ref<'items' | 'settings'>('items')
             <template #title-cell="{ row }">
               <WorkshopItemTooltip :item-id="row.original.item.id">
                 <div class="flex h-13 items-center gap-3">
-                  <img
-                    v-if="row.original.item.previewUrl"
+                  <WorkshopItemThumbnail
                     :src="row.original.item.previewUrl"
-                    alt=""
-                    class="size-13 shrink-0 object-cover"
-                    loading="lazy"
-                  >
-                  <div
-                    v-else
-                    class="flex size-13 shrink-0 items-center justify-center bg-elevated"
-                  >
-                    <UIcon
-                      name="i-lucide-package"
-                      class="size-5 text-dimmed"
-                    />
-                  </div>
+                    class="size-13"
+                  />
                   <div class="min-w-0">
                     <NuxtLink
                       :to="`/items/${row.original.item.id}`"

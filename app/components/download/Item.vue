@@ -43,22 +43,10 @@ const others = computed(() => props.job.itemIds.filter(id => id !== props.itemId
       :item-id="itemId"
       class="flex flex-1 items-center gap-3"
     >
-      <img
-        v-if="item?.previewUrl"
-        :src="item.previewUrl"
-        alt=""
-        class="size-10 shrink-0 rounded object-cover"
-        loading="lazy"
-      >
-      <div
-        v-else
-        class="flex size-10 shrink-0 items-center justify-center rounded bg-elevated"
-      >
-        <UIcon
-          name="i-lucide-package"
-          class="size-5 text-dimmed"
-        />
-      </div>
+      <WorkshopItemThumbnail
+        :src="item?.previewUrl"
+        class="size-10 rounded"
+      />
 
       <div class="min-w-0 flex-1 space-y-1">
         <div class="flex items-center gap-2">

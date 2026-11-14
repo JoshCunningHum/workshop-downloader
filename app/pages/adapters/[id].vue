@@ -154,7 +154,7 @@ async function testGame() {
         <h2 class="font-semibold">
           Installed game version
         </h2>
-        <RuleListEditor
+        <AdapterRuleList
           v-model="def.gameVersion"
           target="game"
           :class="{ 'pointer-events-none opacity-75': builtin }"
@@ -165,7 +165,7 @@ async function testGame() {
         <h2 class="font-semibold">
           Game versions an item supports
         </h2>
-        <RuleListEditor
+        <AdapterRuleList
           v-model="def.itemVersions"
           target="item"
           :class="{ 'pointer-events-none opacity-75': builtin }"

@@ -147,12 +147,11 @@ watch(open, (value) => {
                   :details="c.details"
                   class="flex flex-1 items-center gap-3"
                 >
-                  <img
-                    v-if="c.details?.previewUrl"
-                    :src="c.details.previewUrl"
-                    alt=""
-                    class="size-9 rounded object-cover"
-                  >
+                  <WorkshopItemThumbnail
+                    :src="c.details?.previewUrl"
+                    :placeholder="false"
+                    class="size-9 rounded"
+                  />
                   <div class="min-w-0 flex-1">
                     <p class="truncate text-sm">
                       {{ c.details?.title || c.itemId }}
