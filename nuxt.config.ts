@@ -10,6 +10,11 @@ export default defineNuxtConfig({
   // Tauri serves a static SPA; there is no Nuxt server at runtime.
   ssr: false,
 
+  // Composables live in feature folders (composables/<feature>/use-*.ts); auto-import them all.
+  imports: {
+    dirs: ['composables/**']
+  },
+
   devtools: {
     enabled: true
   },

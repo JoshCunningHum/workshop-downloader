@@ -2,7 +2,7 @@ import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core
 import type { AdapterDefinition } from '~/types/adapters'
 import type { AppDetails } from '~/types/steam'
 
-// Key/value app settings (library path, concurrency, poll interval). See composables/useSettings.ts.
+// Key/value app settings (library path, concurrency, poll interval). See composables/settings/use-settings.ts.
 export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
   value: text('value', { mode: 'json' }).notNull()
