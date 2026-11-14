@@ -1,0 +1,174 @@
+<script setup lang="ts">
+import type { ItemLibraryInfo } from '~/types/items'
+import type { ItemDetails } from '~/types/steam'
+
+// Everything known about a workshop item: Steam figures, description, tags and library state.
+const props = defineProps<{
+  itemId: string
+  remote: ItemDetails | null
+  loadingRemote: boolean
+  local: ItemLibraryInfo | null
+}>()
+
+const title = computed(() => props.remote?.title || props.local?.title || props.itemId)
+const missing = computed(() => !!props.remote && props.remote.result !== 1)
+
+/** Plain-text excerpt of the BBCode description. */
+const excerpt = computed(() => {
+  const text = (props.remote?.description ?? '')
+    .replace(/\[url=[^\]]*\]/gi, '')
+    .replace(/\[\/?[a-z*]+(=[^\]]*)?\]/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return text.length > 320 ? `${text.slice(0, 320)}…` : text
+})
+
+const count = (n: number | undefined) => (n ?? 0).toLocaleString()
+const tags = computed(() => props.remote?.tags ?? [])
+</script>
+
+<template>
+  <img
+    v-if="remote?.previewUrl"
+    :src="remote.previewUrl"
+    alt=""
+    class="max-h-44 w-full object-cover"
+  >
+
+  <div class="space-y-2 p-3 text-xs">
+    <div>
+      <p class="line-clamp-2 text-sm font-semibold text-highlighted">
+        {{ title }}
+      </p>
+      <p class="text-muted">
+        <template v-if="local?.appName">
+          {{ local.appName }} ·
+        </template>
+        {{ itemId }}
+      </p>
+    </div>
+
+    <div
+      v-if="loadingRemote && !remote"
+      class="flex items-center gap-1 text-muted"
+    >
+      <UIcon
+        name="i-lucide-loader-circle"
+        class="animate-spin"
+      />
+      Loading details from Steam…
+    </div>
+
+    <UAlert
+      v-if="missing"
+      color="warning"
+      variant="subtle"
+      :description="remote?.result === 9 ? 'Removed or private on the Workshop' : `Steam result ${remote?.result}`"
+      :ui="{ root: 'p-2', description: 'text-xs' }"
+    />
+
+    <template v-else-if="remote">
+      <UBadge
+        v-if="remote.banned"
+        color="error"
+        variant="subtle"
+        size="sm"
+      >
+        banned
+      </UBadge>
+
+      <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+        <dt class="text-muted">
+          Size
+        </dt>
+        <dd>{{ formatBytes(remote.fileSize) }}</dd>
+        <dt class="text-muted">
+          Subscribers
+        </dt>
+        <dd>{{ count(remote.subscriptions) }}</dd>
+        <dt class="text-muted">
+          Favorites
+        </dt>
+        <dd>{{ count(remote.favorited) }}</dd>
+        <dt class="text-muted">
+          Views
+        </dt>
+        <dd>{{ count(remote.views) }}</dd>
+        <dt class="text-muted">
+          Created
+        </dt>
+        <dd>{{ formatTime(remote.timeCreated) }}</dd>
+        <dt class="text-muted">
+          Updated
+        </dt>
+        <dd>{{ formatTime(remote.timeUpdated) }}</dd>
+      </dl>
+
+      <p
+        v-if="excerpt"
+        class="line-clamp-5 text-muted"
+      >
+        {{ excerpt }}
+      </p>
+    </template>
+
+    <div
+      v-if="local"
+      class="border-t border-default pt-2"
+    >
+      <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+        <dt class="text-muted">
+          Active revision
+        </dt>
+        <dd>
+          {{ local.active ? formatTime(local.active.timeUpdated) : 'not downloaded' }}
+          <span
+            v-if="local.active && remote && remote.timeUpdated > local.active.timeUpdated"
+            class="text-warning"
+          >(update available)</span>
+        </dd>
+        <dt class="text-muted">
+          Snapshots kept
+        </dt>
+        <dd>{{ local.snapshots.length }}</dd>
+        <template v-if="local.active?.itemVersions.length">
+          <dt class="text-muted">
+            Versions
+          </dt>
+          <dd>{{ local.active.itemVersions.join(', ') }}</dd>
+        </template>
+        <dt class="text-muted">
+          Link
+        </dt>
+        <dd>{{ local.link ? local.link.status.replace('_', ' ') : 'not linked' }}</dd>
+        <dt class="text-muted">
+          Auto-update
+        </dt>
+        <dd>{{ local.autoUpdate ? 'on' : 'off' }}{{ local.pinned ? ' · pinned' : '' }}</dd>
+        <dt class="text-muted">
+          Added
+        </dt>
+        <dd>{{ formatMs(local.addedAt) }}</dd>
+      </dl>
+    </div>
+
+    <div
+      v-if="tags.length"
+      class="flex flex-wrap gap-1"
+    >
+      <UBadge
+        v-for="tag in tags.slice(0, 10)"
+        :key="tag"
+        color="neutral"
+        variant="outline"
+        size="sm"
+      >
+        {{ tag }}
+      </UBadge>
+      <span
+        v-if="tags.length > 10"
+        class="text-muted"
+      >+{{ tags.length - 10 }}</span>
+    </div>
+  </div>
+</template>
