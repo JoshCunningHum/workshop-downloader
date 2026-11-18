@@ -1,10 +1,17 @@
 name: windows
 
 # The app only ships for Windows and is developed on macOS, so this is the check that the
-# cfg(windows) code (junctions, registry, zip install, CREATE_NO_WINDOW) compiles and passes tests.
+# cfg(windows) code (junctions, registry, zip install, CREATE_NO_WINDOW) compiles, and it builds
+# the installers.
 on:
   push:
+    branches: [main]
   pull_request:
+
+# A newer push to the same PR cancels the run still going for the older one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   windows:
@@ -33,13 +40,13 @@ jobs:
       - name: Unit tests (TS)
         run: bunx vitest run
 
-      # tauri-build checks that the externalBin exists, so the sidecar must be built before cargo test.
+      # tauri-build checks that the externalBin exists, so the sidecar must be built first.
       - name: Build sidecar
         run: bun run sidecar
 
-      - name: Unit tests (Rust)
-        run: cargo test --workspace --manifest-path src-tauri/Cargo.toml
-
+      # No `cargo test` here: it compiles everything again in the debug profile, about as long as
+      # the release build itself. The build still compiles the cfg(windows) code; run the Rust
+      # tests locally with `cargo test --workspace --manifest-path src-tauri/Cargo.toml`.
       - name: Build installers
         run: bun tauri build
 

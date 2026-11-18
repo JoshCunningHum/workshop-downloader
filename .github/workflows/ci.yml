@@ -1,6 +1,14 @@
 name: ci
 
-on: push
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same PR cancels the run still going for the older one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ci:
