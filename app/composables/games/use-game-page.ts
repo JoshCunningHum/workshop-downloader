@@ -72,7 +72,9 @@ export function useGamePage(appId: number) {
       return
     }
     await catalog.updateApp(appId, { adapterId: best.adapter.id })
-    toast.add({ title: `Adapter: ${best.adapter.name}`, description: `Found supported versions for ${best.matched} of ${best.total} item(s).`, color: 'success' })
+    // Always re-read the stored item versions with the picked adapter (also fixes stale ones).
+    await library.redetectApp(appId)
+    toast.add({ title: `Adapter: ${best.adapter.name}`, description: `Found supported versions for ${best.matched} of ${best.total} item(s); item versions re-detected.`, color: 'success' })
   })
 
   return { data, refresh, app, gameVersion, busy, run, checkUpdates, verifyLinks, detectGameVersion, detectAdapter }

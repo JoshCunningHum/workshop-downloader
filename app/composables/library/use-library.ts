@@ -105,6 +105,24 @@ export function useLibrary() {
     return itemVersions
   }
 
+  /**
+   * Re-runs item-version detection for every snapshot of an app's items with the app's current
+   * adapter. Needed whenever that adapter (or its rules) changes; returns the snapshots updated.
+   */
+  async function redetectApp(appId: number) {
+    const app = await catalog.getApp(appId)
+    if (!app) return 0
+    const adapter = await adapters.forApp(app)
+    let updated = 0
+    for (const item of await items.listForApp(appId)) {
+      for (const snapshot of await snapshots.listForItem(item.id)) {
+        await snapshots.setItemVersions(snapshot.id, await adapters.itemVersions(item, snapshot.path, adapter))
+        updated++
+      }
+    }
+    return updated
+  }
+
   return {
     libraryPath,
     listSnapshots: snapshots.listForItem,
@@ -120,6 +138,7 @@ export function useLibrary() {
     deleteSnapshot,
     prune,
     removeItem,
-    detectVersions
+    detectVersions,
+    redetectApp
   }
 }
