@@ -6,7 +6,7 @@
 //! turned into an event for the main webview. The Steam page itself gets no IPC access.
 
 use crate::error::{Error, Result};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::webview::{NewWindowResponse, PageLoadEvent, WebviewBuilder};
 use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Rect, Runtime, Url, Webview, WebviewUrl};
@@ -18,10 +18,18 @@ const MAIN: &str = "main";
 const SENTINEL_HOST: &str = "wsd.invalid";
 const INJECT: &str = include_str!("workshop_inject.js");
 
-/// Item ids in the download queue, replayed into each page the browser loads.
+/// Item ids in the download queue and in the library, replayed into each page the browser loads.
 #[derive(Default)]
 pub struct WorkshopState {
     queued: Mutex<Vec<String>>,
+    library: Mutex<Library>,
+}
+
+/// Items already downloaded: at Steam's latest revision, or with a newer one on Steam.
+#[derive(Clone, Default, Serialize, Deserialize)]
+pub struct Library {
+    current: Vec<String>,
+    outdated: Vec<String>,
 }
 
 #[derive(Clone, Serialize)]
@@ -103,6 +111,12 @@ fn webview<R: Runtime>(app: &AppHandle<R>) -> Result<Webview<R>> {
     app.get_webview(LABEL).ok_or_else(|| Error::msg("the workshop browser is not open"))
 }
 
+/// Pushes the library state into the page so its buttons show "Downloaded" / "Update".
+fn sync_library<R: Runtime>(webview: &Webview<R>, library: &Library) {
+    let json = serde_json::to_string(library).unwrap_or_else(|_| "{}".into());
+    let _ = webview.eval(format!("window.__wsdSetLibrary && window.__wsdSetLibrary({json})"));
+}
+
 /// Pushes the queued ids into the page so its buttons show "In queue".
 fn sync_queued<R: Runtime>(webview: &Webview<R>, ids: &[String]) {
     let json = serde_json::to_string(ids).unwrap_or_else(|_| "[]".into());
@@ -143,6 +157,8 @@ fn create<R: Runtime>(app: &AppHandle<R>, url: Url, rect: Rect) -> Result<Webvie
             let _ = load_app.emit_to(MAIN, "workshop://location", LocationPayload { url: payload.url().to_string() });
             let state = load_app.state::<WorkshopState>();
             let ids = state.queued.lock().unwrap().clone();
+            let library = state.library.lock().unwrap().clone();
+            sync_library(&webview, &library);
             sync_queued(&webview, &ids);
         });
     Ok(window.add_child(builder, rect.position, rect.size)?)
@@ -219,6 +235,20 @@ pub async fn workshop_forward<R: Runtime>(app: AppHandle<R>) -> Result<()> {
 #[tauri::command]
 pub async fn workshop_reload<R: Runtime>(app: AppHandle<R>) -> Result<()> {
     webview(&app)?.reload()?;
+    Ok(())
+}
+
+/// Sets which items the browser shows as downloaded or outdated (now and on every page it loads next).
+#[tauri::command]
+pub async fn workshop_set_library<R: Runtime>(
+    app: AppHandle<R>,
+    state: tauri::State<'_, WorkshopState>,
+    library: Library,
+) -> Result<()> {
+    *state.library.lock().unwrap() = library.clone();
+    if let Some(webview) = app.get_webview(LABEL) {
+        sync_library(&webview, &library);
+    }
     Ok(())
 }
 

@@ -9,6 +9,9 @@
   const SENTINEL = 'https://wsd.invalid'
   const STEAM_HOST = /(^|\.)(steamcommunity\.com|steampowered\.com)$/
   let queued = new Set()
+  // Items already downloaded: at Steam's latest revision, or with an update on Steam.
+  let current = new Set()
+  let outdated = new Set()
   // Collections clicked on this page; they expand into items, so they can't be looked up in `queued`.
   const addedCollections = new Set()
 
@@ -47,13 +50,21 @@
     /* A collection row's "+": the tile button's look, laid out in the row instead of over an image. */
     .wsd-tile-btn.wsd-row-btn { position: static; display: inline-block; vertical-align: middle; }
     .wsd-add-all { display: flex; justify-content: flex-end; margin: 12px 0; }
+    /* Downloaded at the latest revision: nothing to add. */
+    .wsd-btn[data-state="current"] { opacity: .55; cursor: default; filter: grayscale(.6); }
+    .wsd-tile-btn[data-state="current"] { color: #c6d4df; background: rgba(40, 60, 80, .95); }
+    /* Downloaded, but Steam has a newer revision: blue, and still adds (the update). */
+    .wsd-btn[data-state="outdated"] { background: #1a9fff !important; color: #fff !important; }
+    .wsd-btn[data-state="outdated"] > span { background: none !important; color: #fff !important; }
+    .wsd-tile-btn[data-state="outdated"] { background: rgba(26, 159, 255, .95); }
+    .wsd-tile-hover:hover .wsd-tile-btn[data-state="outdated"]::after { content: " Update"; font-size: 12px; font-weight: normal; }
   `
 
   // --- Buttons ------------------------------------------------------------------------------
 
   const LABELS = {
-    item: { idle: 'Add to queue', adding: 'Adding…', queued: 'In queue ✓' },
-    tile: { idle: '+', adding: '…', queued: '✓' },
+    item: { idle: 'Add to queue', adding: 'Adding…', queued: 'In queue ✓', current: 'Downloaded ✓', outdated: 'Update available' },
+    tile: { idle: '+', adding: '…', queued: '✓', current: '✓', outdated: '↻' },
     collection: { idle: 'Add all', adding: 'Adding…', queued: 'All in queue ✓' }
   }
 
@@ -78,7 +89,8 @@
     btn.addEventListener('click', (e) => {
       e.preventDefault()
       e.stopPropagation()
-      if (btn.dataset.state !== 'idle') return
+      // Idle adds; outdated adds the update. Queued, adding and downloaded do nothing.
+      if (btn.dataset.state !== 'idle' && btn.dataset.state !== 'outdated') return
       if (kind === 'collection') addedCollections.add(btn.dataset.ids)
       setLabel(btn, 'adding')
       queue(ids)
@@ -186,18 +198,24 @@
   function refreshStates(settle = false) {
     for (const btn of document.querySelectorAll('.wsd-btn')) {
       const ids = btn.dataset.ids.split(',')
-      let done
       if (btn.dataset.kind === 'collection') {
-        // Done once clicked, or when every item listed on the page is queued.
+        // Done once clicked, or when every item listed on the page is queued or downloaded.
         const children = [...document.querySelectorAll('.collectionItem')]
           .map(c => (c.id || '').replace(/^sharedfile_/, ''))
           .filter(id => /^\d+$/.test(id))
-        done = addedCollections.has(btn.dataset.ids) || (children.length > 0 && children.every(id => queued.has(id)))
-      } else {
-        done = ids.every(id => queued.has(id))
+        const done = addedCollections.has(btn.dataset.ids)
+          || (children.length > 0 && children.every(id => queued.has(id) || current.has(id)))
+        if (done) setLabel(btn, 'queued')
+        else if (settle || btn.dataset.state !== 'adding') setLabel(btn, 'idle')
+        continue
       }
-      if (done) setLabel(btn, 'queued')
-      else if (settle || btn.dataset.state !== 'adding') setLabel(btn, 'idle')
+      // In queue beats downloaded beats outdated; "adding" holds until the app answers.
+      let state = 'idle'
+      if (ids.every(id => queued.has(id))) state = 'queued'
+      else if (btn.dataset.state === 'adding' && !settle) state = 'adding'
+      else if (ids.every(id => current.has(id))) state = 'current'
+      else if (ids.some(id => outdated.has(id))) state = 'outdated'
+      setLabel(btn, state)
     }
   }
 
@@ -224,6 +242,13 @@
   }, true)
 
   // --- Wiring -------------------------------------------------------------------------------
+
+  /** Called by the app with the downloaded items: `{ current: [...ids], outdated: [...ids] }`. */
+  window.__wsdSetLibrary = (library) => {
+    current = new Set(library.current || [])
+    outdated = new Set(library.outdated || [])
+    refreshStates()
+  }
 
   /** Called by the app with the ids in the download queue. */
   window.__wsdSetQueued = (ids) => {

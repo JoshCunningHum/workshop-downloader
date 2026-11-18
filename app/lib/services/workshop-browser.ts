@@ -28,6 +28,10 @@ export const back = () => command('workshop_back')
 export const forward = () => command('workshop_forward')
 export const reload = () => command('workshop_reload')
 
+/** Items the browser shows as downloaded (`current`, add disabled) or with an update (`outdated`). */
+export interface LibraryState { current: string[], outdated: string[] }
+export const setLibrary = (library: LibraryState) => command('workshop_set_library', { library })
+
 /** The ids the browser shows as "In queue". */
 export const setQueued = (ids: string[]) => command('workshop_set_queued', { ids })
 

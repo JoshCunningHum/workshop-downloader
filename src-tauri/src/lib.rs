@@ -89,6 +89,7 @@ pub fn run() {
             workshop_browser::workshop_forward,
             workshop_browser::workshop_reload,
             workshop_browser::workshop_set_queued,
+            workshop_browser::workshop_set_library,
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

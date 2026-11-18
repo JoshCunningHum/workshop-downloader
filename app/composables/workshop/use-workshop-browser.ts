@@ -40,6 +40,7 @@ export function useWorkshopFrame(el: Ref<HTMLElement | null>, appId: MaybeRefOrG
   const { frames, suspended, location, loading } = useWorkshopBrowser()
   const queue = useDownloadQueue()
   const toast = useToast()
+  const library = useWorkshopLibrary(appId)
   /** The game whose workshop the browser was last sent to. */
   const shownApp = useState<number | null>('workshop:app', () => null)
   const error = ref<string | null>(null)
@@ -115,6 +116,7 @@ export function useWorkshopFrame(el: Ref<HTMLElement | null>, appId: MaybeRefOrG
     if (!mounted) return offs.forEach(off => off())
     unlisten.push(...offs)
     await browser.setQueued(queuedIds()).catch(() => {})
+    library.refresh()
     sync()
   })
   onBeforeUnmount(() => {
