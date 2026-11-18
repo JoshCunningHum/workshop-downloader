@@ -1,8 +1,9 @@
 import { join } from '@tauri-apps/api/path'
 import { expandTemplate } from '~/lib/adapters/engine'
-import type { AppRow, ItemRow, SnapshotRow } from '~/lib/db/schema'
+import type { AppRow, ItemRow, SnapshotEventKind, SnapshotRow } from '~/lib/db/schema'
 import * as items from '~/lib/services/items'
 import * as links from '~/lib/services/links'
+import * as snapshotEvents from '~/lib/services/snapshot-events'
 import * as snapshots from '~/lib/services/snapshots'
 import type { AdapterDefinition } from '~/types/adapters'
 
@@ -29,8 +30,11 @@ export function useLibrary() {
     return join(mods, name)
   }
 
-  /** Makes a snapshot the active version: re-points (or creates) the item's link. */
-  async function activate(snapshotId: number) {
+  /**
+   * Makes a snapshot the active version: re-points (or creates) the item's link. The change is
+   * logged under `reason` (a download is logged even when it re-downloads the linked revision).
+   */
+  async function activate(snapshotId: number, { reason = 'activate' }: { reason?: SnapshotEventKind } = {}) {
     const snapshot = await snapshots.get(snapshotId)
     if (!snapshot) throw new Error('Snapshot not found')
     const item = await items.get(snapshot.itemId)
@@ -46,16 +50,21 @@ export function useLibrary() {
       }
       await links.create({ linkPath, target: snapshot.path, mode: app.linkMode, libraryPath: libraryPath() })
       await links.upsert(item.id, { appId: app.appId, linkPath, snapshotId, type: app.linkMode, status: 'ok' })
+      const from = existing?.snapshotId ?? null
+      if (from !== snapshotId || reason === 'download') {
+        await snapshotEvents.record({ appId: app.appId, itemId: item.id, kind: reason, fromSnapshotId: from, toSnapshotId: snapshotId })
+      }
     }
     await items.update(item.id, { activeSnapshotId: snapshotId })
     return { linked: !!linkPath }
   }
 
-  async function unlink(itemId: string) {
+  async function unlink(itemId: string, { reason = 'unlink' }: { reason?: SnapshotEventKind } = {}) {
     const existing = await links.forItem(itemId)
     if (existing) {
       await links.removeLink(existing.linkPath, libraryPath())
       await links.removeRow(existing.id)
+      await snapshotEvents.record({ appId: existing.appId, itemId, kind: reason, fromSnapshotId: existing.snapshotId, toSnapshotId: null })
     }
   }
 

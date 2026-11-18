@@ -64,7 +64,7 @@ export function useJobEvents() {
     }
     // A fresh download becomes the active version; older snapshots stay available to switch back.
     try {
-      await library.activate(snapshot.id)
+      await library.activate(snapshot.id, { reason: 'download' })
     } catch (e) {
       job.itemErrors[item.id] = `Downloaded, but linking failed: ${e instanceof Error ? e.message : String(e)}`
     }

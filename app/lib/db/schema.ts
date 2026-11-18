@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import type { AdapterDefinition } from '~/types/adapters'
 import type { AppDetails } from '~/types/steam'
 
@@ -53,6 +53,8 @@ export const workshopItems = sqliteTable('workshop_items', {
   activeSnapshotId: integer('active_snapshot_id'),
   pinned: integer('pinned', { mode: 'boolean' }).notNull().default(false),
   autoUpdate: integer('auto_update', { mode: 'boolean' }).notNull().default(true),
+  // Held at its version (after a restore): auto-update skips it, and new downloads aren't made active.
+  held: integer('held', { mode: 'boolean' }).notNull().default(false),
   addedAt: integer('added_at').notNull()
 })
 
@@ -80,6 +82,22 @@ export const links = sqliteTable('links', {
   createdAt: integer('created_at').notNull(),
   status: text('status').$type<LinkStatus>().notNull().default('ok')
 })
+
+// What changed an item's linked snapshot. `baseline` rows were written once by the migration that
+// added this table, to match the links that existed then.
+export type SnapshotEventKind = 'download' | 'activate' | 'unlink' | 'restore' | 'baseline'
+
+// History of an item's linked snapshot, used to restore a game's mods to a point in time.
+export const snapshotEvents = sqliteTable('snapshot_events', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  appId: integer('app_id').notNull(),
+  itemId: text('item_id').notNull(),
+  kind: text('kind').$type<SnapshotEventKind>().notNull(),
+  fromSnapshotId: integer('from_snapshot_id'),
+  // null: unlinked after this change.
+  toSnapshotId: integer('to_snapshot_id'),
+  at: integer('at').notNull()
+}, t => [index('snapshot_events_app_at').on(t.appId, t.at)])
 
 export type JobStatus = 'queued' | 'running' | 'done' | 'partial' | 'failed' | 'cancelled' | 'needs_guard' | 'interrupted'
 
@@ -120,6 +138,7 @@ export type AdapterRow = typeof adapters.$inferSelect
 export type ItemRow = typeof workshopItems.$inferSelect
 export type SnapshotRow = typeof snapshots.$inferSelect
 export type LinkRow = typeof links.$inferSelect
+export type SnapshotEventRow = typeof snapshotEvents.$inferSelect
 export type JobRow = typeof jobs.$inferSelect
 export type AccountRow = typeof steamAccounts.$inferSelect
 export type SteamAppRow = typeof steamApps.$inferSelect
