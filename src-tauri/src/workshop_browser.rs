@@ -135,7 +135,9 @@ fn create<R: Runtime>(app: &AppHandle<R>, url: Url, rect: Rect) -> Result<Webvie
             NewWindowResponse::Deny
         })
         .on_page_load(move |webview, payload| {
-            if payload.event() != PageLoadEvent::Finished {
+            // Started drives the loading bar; Finished (the location event) ends it.
+            if payload.event() == PageLoadEvent::Started {
+                let _ = load_app.emit_to(MAIN, "workshop://loading", LocationPayload { url: payload.url().to_string() });
                 return;
             }
             let _ = load_app.emit_to(MAIN, "workshop://location", LocationPayload { url: payload.url().to_string() });

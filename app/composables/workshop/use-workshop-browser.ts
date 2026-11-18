@@ -11,6 +11,8 @@ export function useWorkshopBrowser() {
   const suspended = useState('workshop:suspended', () => 0)
   /** The page the browser last finished loading. */
   const location = useState<string | null>('workshop:location', () => null)
+  /** A page is loading (between its start and its finish). */
+  const loading = useState('workshop:loading', () => false)
 
   const suspend = () => suspended.value++
   const resume = () => suspended.value = Math.max(0, suspended.value - 1)
@@ -19,6 +21,7 @@ export function useWorkshopBrowser() {
     frames,
     suspended,
     location,
+    loading,
     suspend,
     resume,
     back: browser.back,
@@ -34,7 +37,7 @@ export function useWorkshopBrowser() {
  * last showed; otherwise it stays on the page it was on. Handles its "Add to queue" clicks.
  */
 export function useWorkshopFrame(el: Ref<HTMLElement | null>, appId: MaybeRefOrGetter<number>) {
-  const { frames, suspended, location } = useWorkshopBrowser()
+  const { frames, suspended, location, loading } = useWorkshopBrowser()
   const queue = useDownloadQueue()
   const toast = useToast()
   /** The game whose workshop the browser was last sent to. */
@@ -100,7 +103,14 @@ export function useWorkshopFrame(el: Ref<HTMLElement | null>, appId: MaybeRefOrG
   onMounted(async () => {
     mounted = true
     frames.value++
-    const offs = [await browser.onAdd(onAdd), await browser.onLocation(url => location.value = url)]
+    const offs = [
+      await browser.onAdd(onAdd),
+      await browser.onLoading(() => loading.value = true),
+      await browser.onLocation((url) => {
+        location.value = url
+        loading.value = false
+      })
+    ]
     // Unmounted while subscribing: drop the listeners straight away.
     if (!mounted) return offs.forEach(off => off())
     unlisten.push(...offs)
@@ -114,5 +124,5 @@ export function useWorkshopFrame(el: Ref<HTMLElement | null>, appId: MaybeRefOrG
     sync()
   })
 
-  return { error, location, retry: sync }
+  return { error, location, loading, retry: sync }
 }

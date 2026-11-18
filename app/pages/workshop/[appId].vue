@@ -13,7 +13,7 @@ const name = computed(() => apps.value.find(a => a.appId === appId.value)?.name 
 const queueOpen = useLocalStorage('workshop:queue-open', false)
 
 const frame = useTemplateRef<HTMLElement>('frame')
-const { error, location, retry } = useWorkshopFrame(frame, appId)
+const { error, location, loading, retry } = useWorkshopFrame(frame, appId)
 
 // Clicking a queued item's title shows its workshop page in the browser.
 const { navigate } = useWorkshopBrowser()
@@ -24,12 +24,16 @@ const openItem = (itemId: string) => attempt('Opening the item', () => navigate(
 <template>
   <UDashboardPanel :ui="{ body: 'p-0 sm:p-0 gap-0 sm:gap-0 overflow-hidden' }">
     <template #header>
-      <WorkshopBrowserToolbar
-        v-model:queue-open="queueOpen"
-        :app-id="appId"
-        :name="name"
-        :location="location"
-      />
+      <!-- The loading line sits on the toolbar's bottom border, just above the browser. -->
+      <div class="relative">
+        <WorkshopBrowserToolbar
+          v-model:queue-open="queueOpen"
+          :app-id="appId"
+          :name="name"
+          :location="location"
+        />
+        <WorkshopBrowserLoadingBar :loading="loading" />
+      </div>
     </template>
 
     <template #body>

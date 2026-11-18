@@ -35,6 +35,10 @@ export const setQueued = (ids: string[]) => command('workshop_set_queued', { ids
 export const onAdd = (handler: (ids: string[]) => void) =>
   listen<{ ids: string[] }>('workshop://add', e => handler(e.payload.ids))
 
+/** Each page the browser starts loading (it has finished when `onLocation` fires). */
+export const onLoading = (handler: (url: string) => void) =>
+  listen<{ url: string }>('workshop://loading', e => handler(e.payload.url))
+
 /** Each page the browser finishes loading. */
 export const onLocation = (handler: (url: string) => void) =>
   listen<{ url: string }>('workshop://location', e => handler(e.payload.url))
