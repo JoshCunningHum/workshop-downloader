@@ -30,7 +30,16 @@ const others = computed(() => props.job.itemIds.filter(id => id !== props.itemId
 </script>
 
 <template>
-  <li class="flex items-center gap-3 py-2">
+  <!-- isolate: the speed graph sits behind the content but inside the row. -->
+  <li class="relative isolate flex items-center gap-3 overflow-hidden px-2 py-2">
+    <DownloadSpeedGraph
+      v-if="!status.reason"
+      class="absolute inset-0 -z-10"
+      :bars="live.bars"
+      :percent="progress.percent ?? 0"
+      :faded="!downloading"
+    />
+
     <WorkshopItemTooltip
       :item-id="itemId"
       class="flex flex-1 items-center gap-3"
@@ -61,14 +70,10 @@ const others = computed(() => props.job.itemIds.filter(id => id !== props.itemId
             class="min-w-0 flex-1 truncate text-xs text-error"
             :title="status.reason"
           >{{ status.reason }}</span>
-          <template v-else>
-            <DownloadSpeedGraph
-              class="flex-1"
-              :bars="live.bars"
-              :percent="progress.percent ?? 0"
-            />
-            <span class="w-9 shrink-0 text-right text-xs text-muted tabular-nums">{{ progress.percent ?? 0 }}%</span>
-          </template>
+          <span
+            v-else
+            class="text-xs text-muted tabular-nums"
+          >{{ progress.percent ?? 0 }}%</span>
         </div>
       </div>
 
