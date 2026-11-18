@@ -1,0 +1,36 @@
+Redirecting stderr to '/tmp/steamcmd/logs/stderr.txt'
+[  0%] Checking for available updates...
+[----] Verifying installation...
+Steam Console Client (c) Valve Corporation - version 1700000000
+-- type 'quit' to exit --
+Loading Steam API...OK
+
+Connecting anonymously to Steam Public...OK
+Waiting for client config...OK
+Waiting for user info...OK
+"17906"
+{
+	"packageid"		"17906"
+	"billingtype"		"0"
+	"licensetype"		"1"
+	"status"		"0"
+	"extended"
+	{
+		"allowcrossregiontradingandgifting"		"false"
+	}
+	"appids"
+	{
+		"0"		"90"
+		"1"		"1007"
+		"2"		"740"
+		"3"		"740"
+	}
+	"depotids"
+	{
+		"0"		"91"
+	}
+	"appitems"
+	{
+	}
+}
+Unloading Steam API...OK

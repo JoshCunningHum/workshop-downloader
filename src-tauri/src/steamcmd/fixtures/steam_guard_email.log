@@ -1,0 +1,10 @@
+Steam Console Client (c) Valve Corporation - version 1730000000
+-- type 'quit' to exit --
+Loading Steam API...OK
+Logging in user 'someuser' [U:1:0] to Steam Public...
+This computer has not been authenticated for your account using Steam Guard.
+Please check your email for the message from Steam, and enter the Steam Guard
+ code from that message.
+You can also enter this code at any time using 'set_steam_guard_code'
+ at the console.
+Logging in user 'someuser' [U:1:0] to Steam Public...FAILED (Account Logon Denied)

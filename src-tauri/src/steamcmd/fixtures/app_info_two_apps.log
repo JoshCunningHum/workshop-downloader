@@ -1,0 +1,34 @@
+Connecting anonymously to Steam Public...OK
+Waiting for user info...OK
+AppID : 90, change number : 21000000/0, last change : Mon Jan  1 00:00:00 2024 
+"90"
+{
+	"appid"		"90"
+	"common"
+	{
+		"name"		"Half-Life Dedicated Server"
+		"type"		"Tool"
+		"oslist"		"windows,linux"
+	}
+	"depots"
+	{
+		"4"
+		{
+			"config"
+			{
+				"oslist"		"windows"
+			}
+		}
+	}
+}
+AppID : 740, change number : 22000000/0, last change : Mon Jan  1 00:00:00 2024 
+"740"
+{
+	"appid"		"740"
+	"common"
+	{
+		"name"		"Counter-Strike Global Offensive - Dedicated Server"
+		"type"		"Tool"
+	}
+}
+Unloading Steam API...OK
