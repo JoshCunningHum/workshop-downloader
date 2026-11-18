@@ -32,18 +32,27 @@ const meta = computed(() => ({
   }
 }))
 
+/** Downloaded size (active snapshot, else the newest), or 0 when nothing is downloaded. */
+const diskSize = (row: GameItemRow) => row.active?.sizeBytes || row.latest?.sizeBytes || 0
+
+// Sortable columns get a value to sort by; their cells are the slots below. Unsorted, rows keep
+// the order they come in (by title).
+const sorting = ref<{ id: string, desc: boolean }[]>([])
 const columns: TableColumn<GameItemRow>[] = [
-  { id: 'select' },
-  { id: 'title', header: 'Item' },
-  { id: 'versions', header: 'Item versions' },
-  { id: 'active', header: 'Active snapshot' },
-  { id: 'link', header: 'Link' },
-  { id: 'actions' }
+  { id: 'select', enableSorting: false },
+  { id: 'title', accessorFn: r => (r.item.title || r.item.id).toLowerCase() },
+  { id: 'versions', accessorFn: r => r.active?.itemVersions.join(', ') ?? '' },
+  { id: 'active', accessorFn: r => r.active?.timeUpdated ?? 0 },
+  // Not downloaded: Steam's size, so the column still orders by how big the item is.
+  { id: 'size', accessorFn: r => diskSize(r) || r.item.fileSize },
+  { id: 'link', accessorFn: r => r.link?.status ?? '' },
+  { id: 'actions', enableSorting: false }
 ]
 </script>
 
 <template>
   <UTable
+    v-model:sorting="sorting"
     :data="rows"
     :columns="columns"
     :meta="meta"
@@ -97,6 +106,47 @@ const columns: TableColumn<GameItemRow>[] = [
           </div>
         </div>
       </WorkshopItemTooltip>
+    </template>
+    <template #title-header="{ column }">
+      <GameSortHeader
+        :column="column"
+        label="Item"
+      />
+    </template>
+    <template #versions-header="{ column }">
+      <GameSortHeader
+        :column="column"
+        label="Item versions"
+      />
+    </template>
+    <template #active-header="{ column }">
+      <GameSortHeader
+        :column="column"
+        label="Active snapshot"
+      />
+    </template>
+    <template #size-header="{ column }">
+      <GameSortHeader
+        :column="column"
+        label="Size"
+      />
+    </template>
+    <template #link-header="{ column }">
+      <GameSortHeader
+        :column="column"
+        label="Link"
+      />
+    </template>
+    <template #size-cell="{ row }">
+      <span
+        v-if="diskSize(row.original)"
+        class="tabular-nums"
+      >{{ formatBytes(diskSize(row.original)) }}</span>
+      <span
+        v-else
+        class="text-muted tabular-nums"
+        title="Not downloaded; size on Steam"
+      >{{ formatBytes(row.original.item.fileSize) }}</span>
     </template>
     <template #versions-cell="{ row }">
       <span>{{ row.original.active?.itemVersions.join(', ') || '—' }}</span>
