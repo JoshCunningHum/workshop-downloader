@@ -18,6 +18,8 @@ bun tauri dev      # builds the fswatch sidecar, starts Nuxt on :3000 and opens 
 
 `bun run dev` alone serves the UI in a browser, but anything that needs Tauri (database, SteamCMD) is unavailable there.
 
+With [just](https://github.com/casey/just) installed, `just` lists the common commands (`just dev`, `just test`, `just ci`, `just build`, ...).
+
 ## Scripts
 
 | Command | What it does |
