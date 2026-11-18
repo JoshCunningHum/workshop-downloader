@@ -26,7 +26,7 @@ const emit = defineEmits<{ 'auto-update': [on: boolean], 'download': [] }>()
       </p>
       <p>
         <span class="text-muted">Workshop id</span> {{ item.id }} ·
-        <span class="text-muted">Game</span>
+        <span class="text-muted">Game</span>{{ ' ' }}
         <NuxtLink
           :to="ROUTES.game(item.appId)"
           class="hover:underline"
