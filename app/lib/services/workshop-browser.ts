@@ -12,6 +12,9 @@ const withViewport = (bounds: Bounds) => ({ ...bounds, viewportHeight: window.in
 /** The workshop home page of a game. */
 export const workshopHome = (appId: number) => `https://steamcommunity.com/app/${appId}/workshop/`
 
+/** The workshop page of an item. */
+export const itemPage = (itemId: string) => `https://steamcommunity.com/sharedfiles/filedetails/?id=${itemId}`
+
 /** Shows the browser at `bounds` (creating it the first time); with a `url`, it also goes there. */
 export const show = (bounds: Bounds, url?: string) => command('workshop_show', { url, ...withViewport(bounds) })
 

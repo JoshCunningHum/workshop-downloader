@@ -3,8 +3,10 @@ import { ROUTES } from '~/constants/routes'
 import type { QueueEntry } from '~/types/downloads'
 
 // A queued item, laid out like a download row: tick it to include it in "Download".
-const props = defineProps<{ entry: QueueEntry, noDetails?: boolean }>()
-const emit = defineEmits<{ toggle: [on: boolean | 'indeterminate'], remove: [] }>()
+// With `openable`, the title is a link-styled button that emits `open` (the Workshop browser
+// shows the item's page) instead of plain text.
+const props = defineProps<{ entry: QueueEntry, noDetails?: boolean, openable?: boolean }>()
+const emit = defineEmits<{ toggle: [on: boolean | 'indeterminate'], remove: [], open: [] }>()
 
 const item = computed(() => props.entry.details)
 const status = computed(() => props.entry.downloaded
@@ -34,7 +36,19 @@ const status = computed(() => props.entry.downloaded
 
       <div class="min-w-0 flex-1 space-y-1">
         <div class="flex items-center gap-2">
-          <span class="truncate text-sm font-medium">{{ item.title || item.id }}</span>
+          <button
+            v-if="openable"
+            type="button"
+            class="cursor-pointer truncate text-start text-sm font-medium text-primary hover:underline"
+            :title="`Open ${item.title || item.id} in the browser`"
+            @click="emit('open')"
+          >
+            {{ item.title || item.id }}
+          </button>
+          <span
+            v-else
+            class="truncate text-sm font-medium"
+          >{{ item.title || item.id }}</span>
           <NuxtLink
             :to="ROUTES.game(item.appId)"
             class="shrink-0 truncate text-xs text-muted hover:underline"

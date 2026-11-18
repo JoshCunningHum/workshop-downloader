@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { itemPage } from '~/lib/services/workshop-browser'
+
 // A game's Steam Workshop in the embedded browser, under a toolbar. The browser is a native
 // webview kept over the frame below; its Subscribe buttons are "Add to queue" buttons.
 const route = useRoute()
@@ -12,6 +14,11 @@ const queueOpen = useLocalStorage('workshop:queue-open', false)
 
 const frame = useTemplateRef<HTMLElement>('frame')
 const { error, location, retry } = useWorkshopFrame(frame, appId)
+
+// Clicking a queued item's title shows its workshop page in the browser.
+const { navigate } = useWorkshopBrowser()
+const attempt = useAttempt()
+const openItem = (itemId: string) => attempt('Opening the item', () => navigate(itemPage(itemId)))
 </script>
 
 <template>
@@ -54,7 +61,11 @@ const { error, location, retry } = useWorkshopFrame(frame, appId)
           <h2 class="mb-3 text-sm font-medium text-highlighted">
             Queue
           </h2>
-          <DownloadQueueList no-details />
+          <DownloadQueueList
+            no-details
+            openable
+            @open="openItem"
+          />
         </aside>
       </div>
     </template>
