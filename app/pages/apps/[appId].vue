@@ -63,6 +63,7 @@ const view = ref<'items' | 'settings'>('items')
             @download="items.download"
             @link="items.link"
             @unlink="items.unlink"
+            @release="items.release"
           />
         </div>
 

@@ -11,6 +11,7 @@ const emit = defineEmits<{
   'download': [ids: string[]]
   'link': [rows: GameItemRow[]]
   'unlink': [rows: GameItemRow[]]
+  'release': [rows: GameItemRow[]]
 }>()
 
 const jobsStore = useJobs()
@@ -102,6 +103,15 @@ const columns: TableColumn<GameItemRow>[] = [
               >
                 downloading
               </UBadge>
+              <UBadge
+                v-if="row.original.item.held"
+                size="sm"
+                color="info"
+                variant="subtle"
+                title="Held at this version: auto-update skips it and new downloads aren't made active"
+              >
+                held
+              </UBadge>
             </div>
           </div>
         </div>
@@ -187,6 +197,15 @@ const columns: TableColumn<GameItemRow>[] = [
           :path="row.original.link?.linkPath ?? row.original.active?.path ?? row.original.latest?.path"
           size="xs"
           variant="ghost"
+        />
+        <UButton
+          v-if="row.original.item.held"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-lock-open"
+          title="Release hold"
+          @click="emit('release', [row.original])"
         />
         <UButton
           size="xs"

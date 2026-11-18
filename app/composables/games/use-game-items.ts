@@ -6,6 +6,7 @@ import type { GamePage } from './use-game-page'
 // The item table of a game's page: rows, selection, and download/link/unlink/remove.
 export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'gameVersion' | 'run'>) {
   const library = useLibrary()
+  const catalog = useCatalog()
   const jobsStore = useJobs()
   const toast = useToast()
   const { data, gameVersion, run } = page
@@ -88,6 +89,13 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'gameV
     })
   }
 
+  /** Lets held items follow updates again. */
+  function release(target: GameItemRow[]) {
+    return run('Release hold', async () => {
+      for (const row of target) await catalog.updateItem(row.item.id, { held: false })
+    })
+  }
+
   function remove(target: GameItemRow[]) {
     return run('Remove', async () => {
       for (const row of target) await library.removeItem(row.item.id)
@@ -95,5 +103,5 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'gameV
     })
   }
 
-  return { rows, visibleRows, search, outdatedIds, selected, allSelected, selectedRows, toggle, toggleAll, download, link, unlink, remove }
+  return { rows, visibleRows, search, outdatedIds, selected, allSelected, selectedRows, toggle, toggleAll, download, link, unlink, release, remove }
 }

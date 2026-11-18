@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // A workshop item: its details and the snapshots it keeps.
 const route = useRoute()
-const { data, gameVersion, downloading, busy, makeActive, togglePin, remove, unlink, redetect, download, setAutoUpdate } = useItemPage(String(route.params.id))
+const { data, gameVersion, downloading, busy, makeActive, togglePin, remove, unlink, redetect, download, setAutoUpdate, releaseHold } = useItemPage(String(route.params.id))
 </script>
 
 <template>
@@ -37,6 +37,17 @@ const { data, gameVersion, downloading, busy, makeActive, togglePin, remove, unl
             :disabled="!data.snapshots.length || !data.app"
             :loading="busy"
             @click="redetect"
+          />
+          <UButton
+            v-if="data.item.held"
+            size="xs"
+            color="info"
+            variant="outline"
+            icon="i-lucide-lock-open"
+            label="Release hold"
+            title="Held at this version: auto-update skips it and new downloads aren't made active"
+            :loading="busy"
+            @click="releaseHold"
           />
           <UButton
             v-if="data.link"

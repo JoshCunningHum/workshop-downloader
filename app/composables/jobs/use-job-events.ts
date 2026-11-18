@@ -63,10 +63,15 @@ export function useJobEvents() {
       job.log.push(`[app] version detection failed for ${item.id}: ${String(e)}`)
     }
     // A fresh download becomes the active version; older snapshots stay available to switch back.
-    try {
-      await library.activate(snapshot.id, { reason: 'download' })
-    } catch (e) {
-      job.itemErrors[item.id] = `Downloaded, but linking failed: ${e instanceof Error ? e.message : String(e)}`
+    // Held items keep their version: the new revision is only kept.
+    if (item.held) {
+      job.log.push(`[app] ${item.id} is held; new revision kept but not activated`)
+    } else {
+      try {
+        await library.activate(snapshot.id, { reason: 'download' })
+      } catch (e) {
+        job.itemErrors[item.id] = `Downloaded, but linking failed: ${e instanceof Error ? e.message : String(e)}`
+      }
     }
     try {
       await library.prune(item.id)

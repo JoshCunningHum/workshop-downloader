@@ -1,5 +1,5 @@
 // Update checks: on demand, plus a timer when enabled in Settings. Apps with auto-update on
-// get their outdated items (those with item-level auto-update on) queued for download.
+// get their outdated items (those with item-level auto-update on, and not held) queued for download.
 export function useUpdateChecker() {
   const { settings } = useSettings()
   const catalog = useCatalog()
@@ -22,7 +22,7 @@ export function useUpdateChecker() {
         const busy = jobsStore.busyItemIds.value
         for (const app of await catalog.listApps()) {
           if (!app.autoUpdate) continue
-          const ids = items.filter(i => i.appId === app.appId && i.autoUpdate && !busy.has(i.id)).map(i => i.id)
+          const ids = items.filter(i => i.appId === app.appId && i.autoUpdate && !i.held && !busy.has(i.id)).map(i => i.id)
           if (ids.length) await jobsStore.enqueue(app.appId, ids)
         }
       }
