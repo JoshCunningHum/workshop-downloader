@@ -26,3 +26,6 @@ src-tauri/binaries/fswatch-*
 
 # Source image for `tauri icon`
 app-icon.png
+
+# Output of queued screenshot runs
+.shots-logs/

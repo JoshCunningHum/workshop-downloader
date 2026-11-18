@@ -84,6 +84,7 @@ const today = dayKey(Date.now())
       <button
         v-for="c in cells"
         :key="c.key"
+        :data-day="c.key"
         type="button"
         class="flex h-16 flex-col gap-1 rounded-md border p-1.5 text-start text-xs transition-colors"
         :class="[
