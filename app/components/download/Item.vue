@@ -21,8 +21,9 @@ const progress = computed(() => {
   return { bytes, total, percent: total ? Math.round(bytes / total * 100) : null }
 })
 
-// Red at 0%, yellow at 50%, green at 100%.
-const barColor = computed(() => `hsl(${(progress.value.percent ?? 0) * 1.2} 85% 45%)`)
+const speed = useItemSpeed()
+const downloading = computed(() => status.value.state === 'downloading')
+const live = computed(() => speed.stats(props.job.id, props.itemId, progress.value.bytes, progress.value.total))
 
 // Cancelling stops the SteamCMD process, which may be fetching other items too.
 const others = computed(() => props.job.itemIds.filter(id => id !== props.itemId && !props.job.itemsDone[id]).length)
@@ -55,26 +56,49 @@ const others = computed(() => props.job.itemIds.filter(id => id !== props.itemId
           </NuxtLink>
         </div>
         <div class="flex items-center gap-2">
-          <div
-            v-if="status.state !== 'failed' && status.state !== 'cancelled'"
-            class="h-px flex-1 overflow-hidden bg-accented"
-            role="progressbar"
-            :aria-valuenow="progress.percent ?? 0"
-            aria-valuemin="0"
-            aria-valuemax="100"
-          >
-            <div
-              class="h-full transition-[width,background-color] duration-500"
-              :style="{ width: `${progress.percent ?? 0}%`, backgroundColor: barColor }"
-            />
-          </div>
           <span
             v-if="status.reason"
             class="min-w-0 flex-1 truncate text-xs text-error"
             :title="status.reason"
           >{{ status.reason }}</span>
-          <span class="shrink-0 text-xs text-muted tabular-nums">
-            <template v-if="status.state === 'downloading' || status.state === 'done'">{{ formatBytes(progress.bytes) }} / </template>{{ formatBytes(progress.total) }}
+          <template v-else>
+            <DownloadSpeedGraph
+              class="flex-1"
+              :bars="live.bars"
+              :percent="progress.percent ?? 0"
+            />
+            <span class="w-9 shrink-0 text-right text-xs text-muted tabular-nums">{{ progress.percent ?? 0 }}%</span>
+          </template>
+        </div>
+      </div>
+
+      <!-- Speed on top; size and time left below. Icons and units instead of labels. -->
+      <div class="w-44 shrink-0 space-y-1 text-right text-xs text-muted tabular-nums">
+        <div
+          v-if="downloading"
+          class="flex items-center justify-end gap-1 font-medium text-highlighted"
+          title="Download speed"
+        >
+          <UIcon
+            name="i-lucide-arrow-down"
+            class="size-3.5 text-primary"
+          />
+          {{ formatBytes(live.speed) }}/s
+        </div>
+        <div class="flex items-center justify-end gap-1.5">
+          <span title="Downloaded / total">
+            <template v-if="downloading || status.state === 'done'"><span :class="{ 'text-primary': downloading }">{{ formatBytes(progress.bytes) }}</span> / </template>{{ formatBytes(progress.total) }}
+          </span>
+          <span
+            v-if="downloading"
+            class="flex items-center gap-0.5"
+            title="Time left"
+          >
+            <UIcon
+              name="i-lucide-clock"
+              class="size-3"
+            />
+            {{ formatDuration(live.eta) }}
           </span>
         </div>
       </div>
