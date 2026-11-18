@@ -14,3 +14,13 @@ export function formatMs(ms: number | null | undefined): string {
   if (!ms) return '—'
   return new Date(ms).toLocaleString()
 }
+
+/** Seconds as m:ss or h:mm:ss; "—" when unknown. */
+export function formatDuration(seconds: number | null | undefined): string {
+  if (seconds == null || !Number.isFinite(seconds)) return '—'
+  const s = Math.round(seconds)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor(s % 3600 / 60)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`
+}
