@@ -1,13 +1,15 @@
 <script setup lang="ts">
-// Actions for the items ticked in a game's item table.
+// Actions for the items ticked in a game's item table. The bar always takes its space (the
+// buttons are only hidden), so ticking the first item doesn't push the table down.
 defineProps<{ count: number }>()
 const emit = defineEmits<{ download: [], link: [], unlink: [], remove: [] }>()
 </script>
 
 <template>
   <div
-    v-if="count"
-    class="flex flex-wrap gap-2"
+    class="flex gap-2 overflow-x-auto transition-opacity duration-150 *:shrink-0"
+    :class="count ? 'opacity-100' : 'invisible opacity-0'"
+    :aria-hidden="!count"
   >
     <UButton
       size="sm"
