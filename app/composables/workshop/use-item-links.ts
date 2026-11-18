@@ -26,7 +26,7 @@ export function useItemLinks() {
 
     const page = workshopItemUrl(href)!
     if (route.path === ROUTES.workshopApp(appId)) return navigate(page).catch(() => {})
-    pending.value = page
+    pending.value = { appId, url: page }
     await navigateTo(ROUTES.workshopApp(appId))
   }
 

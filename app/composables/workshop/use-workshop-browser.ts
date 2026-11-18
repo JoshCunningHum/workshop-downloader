@@ -13,8 +13,12 @@ export function useWorkshopBrowser() {
   const location = useState<string | null>('workshop:location', () => null)
   /** A page is loading (between its start and its finish). */
   const loading = useState('workshop:loading', () => false)
-  /** A page to open instead of the game's workshop home the next time a frame is shown. */
-  const pending = useState<string | null>('workshop:pending', () => null)
+  /**
+   * A page to open instead of the game's workshop home the next time a frame shows that game.
+   * Tied to the game, so a frame of another game (one still mounted during a route change)
+   * doesn't take it.
+   */
+  const pending = useState<{ appId: number, url: string } | null>('workshop:pending', () => null)
 
   const suspend = () => suspended.value++
   const resume = () => suspended.value = Math.max(0, suspended.value - 1)
@@ -56,10 +60,12 @@ export function useWorkshopFrame(el: Ref<HTMLElement | null>, appId: MaybeRefOrG
     if (!visible.value) return browser.hide()
     const id = toValue(appId)
     // A link opened from elsewhere in the app goes first; else the home of a newly shown game.
-    const url = pending.value ?? (shownApp.value !== id ? browser.workshopHome(id) : undefined)
-    pending.value = null
+    const target = pending.value?.appId === id ? pending.value : null
+    const url = target?.url ?? (shownApp.value !== id ? browser.workshopHome(id) : undefined)
     await browser.show({ x: x.value, y: y.value, width: width.value, height: height.value }, url)
     shownApp.value = id
+    // Only once the browser is there: a failed attempt keeps it for the retry.
+    if (target && pending.value === target) pending.value = null
   }
 
   // One call at a time: the first `show` creates the webview, and a second one racing it
