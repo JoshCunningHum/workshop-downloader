@@ -6869,6 +6869,7 @@ dependencies = [
 name = "workshop-downloader"
 version = "0.1.0"
 dependencies = [
+ "dunce",
  "flate2",
  "glob",
  "junction",

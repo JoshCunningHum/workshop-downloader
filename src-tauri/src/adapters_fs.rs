@@ -20,13 +20,16 @@ pub struct FileContent {
 
 pub fn read(root: &Path, globs: &[String], max_bytes: u64) -> Result<Vec<FileContent>> {
     let max_bytes = max_bytes.min(MAX_BYTES_CAP);
-    let root = std::fs::canonicalize(root).map_err(|e| Error::msg(format!("{}: {e}", root.display())))?;
+    // dunce: plain `C:\...` paths on Windows. std's `\\?\C:\...` (verbatim) form can't be used as
+    // the base of a glob pattern; nothing would ever match.
+    let root = dunce::canonicalize(root).map_err(|e| Error::msg(format!("{}: {e}", root.display())))?;
     let options = glob::MatchOptions { case_sensitive: false, require_literal_separator: true, ..Default::default() };
     let mut out: Vec<FileContent> = vec![];
 
     for pattern in globs {
         let rel = Path::new(pattern);
-        if rel.is_absolute() || rel.components().any(|c| matches!(c, Component::ParentDir | Component::Prefix(_))) {
+        // `has_root` also catches "/etc/hosts" on Windows, which isn't absolute there (no drive).
+        if rel.is_absolute() || rel.has_root() || rel.components().any(|c| matches!(c, Component::ParentDir | Component::Prefix(_))) {
             return Err(Error::msg(format!("glob {pattern:?} must be relative to the root, without '..'")));
         }
         let full = format!("{}/{}", glob::Pattern::escape(&root.to_string_lossy()), pattern.replace('\\', "/"));
@@ -36,7 +39,7 @@ pub fn read(root: &Path, globs: &[String], max_bytes: u64) -> Result<Vec<FileCon
                 return Ok(out);
             }
             // Resolve links so a symlink inside the item can't point the read outside root.
-            let Ok(real) = std::fs::canonicalize(&path) else { continue };
+            let Ok(real) = dunce::canonicalize(&path) else { continue };
             if !real.starts_with(&root) || !real.is_file() {
                 continue;
             }
