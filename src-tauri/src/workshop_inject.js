@@ -44,6 +44,9 @@
     /* Hovering the tile spells out what "+" does. */
     .wsd-tile-hover:hover .wsd-tile-btn[data-state="idle"]::after { content: " Add to queue"; font-size: 12px; font-weight: normal; }
     .wsd-tile-btn[data-state="queued"] { color: #c6d4df; background: rgba(40, 60, 80, .95); }
+    /* A collection row's "+": the tile button's look, laid out in the row instead of over an image. */
+    .wsd-tile-btn.wsd-row-btn { position: static; display: inline-block; vertical-align: middle; }
+    .wsd-add-all { display: flex; justify-content: flex-end; margin: 12px 0; }
   `
 
   // --- Buttons ------------------------------------------------------------------------------
@@ -51,7 +54,7 @@
   const LABELS = {
     item: { idle: 'Add to queue', adding: 'Adding…', queued: 'In queue ✓' },
     tile: { idle: '+', adding: '…', queued: '✓' },
-    collection: { idle: 'Add all to queue', adding: 'Adding…', queued: 'All in queue ✓' }
+    collection: { idle: 'Add all', adding: 'Adding…', queued: 'All in queue ✓' }
   }
 
   function setLabel(btn, state) {
@@ -97,8 +100,17 @@
     return idFromHref(location.search)
   }
 
+  /**
+   * The collection-wide subscribe buttons. Each item's own button calls SubscribeCollectionItem,
+   * which also contains "SubscribeCollection", so those are filtered out.
+   */
+  function collectionButtons() {
+    return [...document.querySelectorAll('[onclick*="SubscribeCollection"]')]
+      .filter(el => !/SubscribeCollectionItem/.test(el.getAttribute('onclick')))
+  }
+
   function isCollectionPage() {
-    return !!document.querySelector('.collectionChildren, [onclick*="SubscribeCollection"]')
+    return !!document.querySelector('.collectionChildren') || collectionButtons().length > 0
   }
 
   /** An item's own page: the big green Subscribe button. */
@@ -109,11 +121,14 @@
       makeButton('item', [id], 'a', 'btn_green_white_innerfade btn_border_2px btn_medium'))
   }
 
-  /** A collection page: "Subscribe to all", and each item's own subscribe toggle. */
+  /**
+   * A collection page: "Subscribe to all" becomes "Add all", each item's subscribe toggle a
+   * compact "+", and another "Add all" goes below the list.
+   */
   function patchCollectionPage() {
     const id = pageId()
     if (!id || !isCollectionPage()) return
-    for (const all of document.querySelectorAll('[onclick*="SubscribeCollection"]')) {
+    for (const all of collectionButtons()) {
       if (/Unsubscribe/i.test(all.getAttribute('onclick'))) {
         all.classList.add('wsd-hidden')
         continue
@@ -123,8 +138,19 @@
     for (const child of document.querySelectorAll('.collectionItem')) {
       const childId = (child.id || '').replace(/^sharedfile_/, '')
       if (!/^\d+$/.test(childId)) continue
-      replace(child.querySelector(`#SubscribeItemBtn${childId}, [onclick*="SubscribeCollectionItem"]`), () =>
-        makeButton('item', [childId], 'a', 'general_btn subscribe'))
+      replace(child.querySelector(`#SubscribeItemBtn${childId}, [onclick*="SubscribeCollectionItem"]`), () => {
+        const btn = makeButton('tile', [childId], 'button', 'wsd-tile-btn wsd-row-btn')
+        btn.title = 'Add to queue'
+        return btn
+      })
+    }
+    const list = document.querySelector('.collectionChildren')
+    if (list && !list.dataset.wsdAddAll) {
+      list.dataset.wsdAddAll = '1'
+      const bar = document.createElement('div')
+      bar.className = 'wsd-add-all'
+      bar.appendChild(makeButton('collection', [id], 'a', 'btn_green_white_innerfade btn_medium'))
+      list.insertAdjacentElement('afterend', bar)
     }
   }
 
