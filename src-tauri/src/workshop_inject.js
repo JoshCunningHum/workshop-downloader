@@ -9,6 +9,8 @@
   const SENTINEL = 'https://wsd.invalid'
   const STEAM_HOST = /(^|\.)(steamcommunity\.com|steampowered\.com)$/
   let queued = new Set()
+  // See __wsdSetOptions: workshop item links that would leave the browser open in it instead.
+  let openItemLinks = true
   // Items already downloaded: at Steam's latest revision, or with an update on Steam.
   let current = new Set()
   let outdated = new Set()
@@ -21,6 +23,28 @@
 
   function queue(ids) {
     send('add', { ids: ids.join(',') })
+  }
+
+  /** The item page for a workshop item link (also through Steam's link filter), or null. */
+  function itemPageUrl(href, depth = 0) {
+    let url
+    try {
+      url = new URL(href, location.href)
+    } catch {
+      return null
+    }
+    if (url.protocol === 'steam:') {
+      const match = /^steam:\/\/url\/CommunityFilePage\/(\d+)/i.exec(url.href)
+      return match ? `https://steamcommunity.com/sharedfiles/filedetails/?id=${match[1]}` : null
+    }
+    if (!/^https?:$/.test(url.protocol) || !/(^|\.)steamcommunity\.com$/.test(url.hostname)) return null
+    if (/^\/linkfilter\/?$/.test(url.pathname)) {
+      const target = url.searchParams.get('u') || url.searchParams.get('url')
+      return target && depth < 2 ? itemPageUrl(target, depth + 1) : null
+    }
+    if (!/^\/(sharedfiles|workshop)\/filedetails\/?$/.test(url.pathname)) return null
+    const id = url.searchParams.get('id')
+    return id && /^\d+$/.test(id) && id !== '0' ? `https://steamcommunity.com/sharedfiles/filedetails/?id=${id}` : null
   }
 
   function idFromHref(href) {
@@ -238,10 +262,18 @@
     if (!target) return
     e.preventDefault()
     e.stopPropagation()
-    send('open', { url: target })
+    // A workshop item stays in the browser (when that option is on); anything else leaves.
+    const item = openItemLinks && itemPageUrl(target)
+    if (item) location.href = item
+    else send('open', { url: target })
   }, true)
 
   // --- Wiring -------------------------------------------------------------------------------
+
+  /** Called by the app with the link options: `{ openItemLinks: boolean }`. */
+  window.__wsdSetOptions = (options) => {
+    openItemLinks = options.openItemLinks !== false
+  }
 
   /** Called by the app with the downloaded items: `{ current: [...ids], outdated: [...ids] }`. */
   window.__wsdSetLibrary = (library) => {

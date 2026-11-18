@@ -6,5 +6,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   concurrency: 3,
   batchSize: 10,
   updateCheckEnabled: false,
-  updateCheckMinutes: 60
+  updateCheckMinutes: 60,
+  openItemLinksInWorkshop: true
 }

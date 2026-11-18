@@ -13,6 +13,8 @@ export function useWorkshopBrowser() {
   const location = useState<string | null>('workshop:location', () => null)
   /** A page is loading (between its start and its finish). */
   const loading = useState('workshop:loading', () => false)
+  /** A page to open instead of the game's workshop home the next time a frame is shown. */
+  const pending = useState<string | null>('workshop:pending', () => null)
 
   const suspend = () => suspended.value++
   const resume = () => suspended.value = Math.max(0, suspended.value - 1)
@@ -22,6 +24,7 @@ export function useWorkshopBrowser() {
     suspended,
     location,
     loading,
+    pending,
     suspend,
     resume,
     back: browser.back,
@@ -37,7 +40,8 @@ export function useWorkshopBrowser() {
  * last showed; otherwise it stays on the page it was on. Handles its "Add to queue" clicks.
  */
 export function useWorkshopFrame(el: Ref<HTMLElement | null>, appId: MaybeRefOrGetter<number>) {
-  const { frames, suspended, location, loading } = useWorkshopBrowser()
+  const { frames, suspended, location, loading, pending } = useWorkshopBrowser()
+  const { settings } = useSettings()
   const queue = useDownloadQueue()
   const toast = useToast()
   const library = useWorkshopLibrary(appId)
@@ -51,7 +55,9 @@ export function useWorkshopFrame(el: Ref<HTMLElement | null>, appId: MaybeRefOrG
   async function apply() {
     if (!visible.value) return browser.hide()
     const id = toValue(appId)
-    const url = shownApp.value !== id ? browser.workshopHome(id) : undefined
+    // A link opened from elsewhere in the app goes first; else the home of a newly shown game.
+    const url = pending.value ?? (shownApp.value !== id ? browser.workshopHome(id) : undefined)
+    pending.value = null
     await browser.show({ x: x.value, y: y.value, width: width.value, height: height.value }, url)
     shownApp.value = id
   }
@@ -94,7 +100,10 @@ export function useWorkshopFrame(el: Ref<HTMLElement | null>, appId: MaybeRefOrG
     await browser.setQueued(queuedIds()).catch(() => {})
   }
 
-  watch([visible, x, y, width, height, () => toValue(appId)], sync)
+  watch([visible, x, y, width, height, () => toValue(appId), pending], sync)
+  watch(() => settings.value.openItemLinksInWorkshop, (openItemLinks) => {
+    browser.setOptions({ openItemLinks }).catch(() => {})
+  })
   watch(() => queuedIds().join(','), () => {
     browser.setQueued(queuedIds()).catch(() => {})
   })
@@ -116,6 +125,7 @@ export function useWorkshopFrame(el: Ref<HTMLElement | null>, appId: MaybeRefOrG
     if (!mounted) return offs.forEach(off => off())
     unlisten.push(...offs)
     await browser.setQueued(queuedIds()).catch(() => {})
+    await browser.setOptions({ openItemLinks: settings.value.openItemLinksInWorkshop }).catch(() => {})
     library.refresh()
     sync()
   })

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { openUrl } from '@tauri-apps/plugin-opener'
 import type { ItemLibraryInfo } from '~/types/items'
 import type { ItemDetails } from '~/types/steam'
 
@@ -19,12 +18,16 @@ const missing = computed(() => !!props.remote && props.remote.result !== 1)
 /** The BBCode description as (escaped, tag-whitelisted) HTML. */
 const description = computed(() => props.remote?.description ? bbcodeToHtml(props.remote.description) : '')
 
-/** Links in the description open in the system browser, not in the app. */
+/**
+ * Links in the description never navigate the app: workshop item pages open in the Workshop
+ * browser (when that setting is on), others in the system browser.
+ */
+const links = useItemLinks()
 function openLink(event: MouseEvent) {
   const link = event.target instanceof Element ? event.target.closest('a[href]') : null
   if (!link) return
   event.preventDefault()
-  openUrl(link.getAttribute('href')!).catch(() => {})
+  links.open(link.getAttribute('href')!)
 }
 
 // The image box keeps its size while the details or the image load, so the card doesn't jump.

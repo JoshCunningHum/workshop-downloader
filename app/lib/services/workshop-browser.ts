@@ -32,6 +32,10 @@ export const reload = () => command('workshop_reload')
 export interface LibraryState { current: string[], outdated: string[] }
 export const setLibrary = (library: LibraryState) => command('workshop_set_library', { library })
 
+/** How the browser treats links; see `AppSettings.openItemLinksInWorkshop`. */
+export interface BrowserOptions { openItemLinks: boolean }
+export const setOptions = (options: BrowserOptions) => command('workshop_set_options', { options })
+
 /** The ids the browser shows as "In queue". */
 export const setQueued = (ids: string[]) => command('workshop_set_queued', { ids })
 

@@ -18,11 +18,27 @@ const MAIN: &str = "main";
 const SENTINEL_HOST: &str = "wsd.invalid";
 const INJECT: &str = include_str!("workshop_inject.js");
 
-/// Item ids in the download queue and in the library, replayed into each page the browser loads.
+/// Item ids in the download queue and in the library, and the link options, replayed into each
+/// page the browser loads.
 #[derive(Default)]
 pub struct WorkshopState {
     queued: Mutex<Vec<String>>,
     library: Mutex<Library>,
+    options: Mutex<Options>,
+}
+
+/// How the browser treats links.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Options {
+    /// Workshop item links that would leave the browser (new windows, off-site) open in it instead.
+    open_item_links: bool,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Options { open_item_links: true }
+    }
 }
 
 /// Items already downloaded: at Steam's latest revision, or with a newer one on Steam.
@@ -73,6 +89,43 @@ fn parse_sentinel(url: &Url) -> Option<Request> {
         }
         _ => None,
     }
+}
+
+/// The item page for a link to a workshop item: `steamcommunity.com/{sharedfiles,workshop}/filedetails/?id=…`,
+/// `steam://url/CommunityFilePage/…`, or Steam's link filter around either. Other links give `None`.
+fn workshop_item_url(url: &Url) -> Option<Url> {
+    item_id(url, 0).and_then(|id| Url::parse(&format!("https://steamcommunity.com/sharedfiles/filedetails/?id={id}")).ok())
+}
+
+fn item_id(url: &Url, depth: u8) -> Option<String> {
+    let digits = |s: &str| (!s.is_empty() && s != "0" && s.bytes().all(|b| b.is_ascii_digit())).then(|| s.to_owned());
+    if url.scheme() == "steam" {
+        let rest = url.as_str().strip_prefix("steam://url/CommunityFilePage/")?;
+        return digits(rest.trim_end_matches('/'));
+    }
+    if !matches!(url.scheme(), "http" | "https") {
+        return None;
+    }
+    let host = url.host_str()?;
+    if host != "steamcommunity.com" && !host.ends_with(".steamcommunity.com") {
+        return None;
+    }
+    let param = |name: &str| url.query_pairs().find(|(k, _)| k == name).map(|(_, v)| v.into_owned());
+    let path = url.path().trim_end_matches('/');
+    if path == "/linkfilter" {
+        let target = Url::parse(&param("u").or_else(|| param("url"))?).ok()?;
+        return if depth < 2 { item_id(&target, depth + 1) } else { None };
+    }
+    if path != "/sharedfiles/filedetails" && path != "/workshop/filedetails" {
+        return None;
+    }
+    digits(&param("id")?)
+}
+
+/// Pushes the link options into the page (it checks them for off-site links).
+fn sync_options<R: Runtime>(webview: &Webview<R>, options: &Options) {
+    let json = serde_json::to_string(options).unwrap_or_else(|_| "{}".into());
+    let _ = webview.eval(format!("window.__wsdSetOptions && window.__wsdSetOptions({json})"));
 }
 
 fn open_external(url: &str) {
@@ -127,6 +180,7 @@ fn create<R: Runtime>(app: &AppHandle<R>, url: Url, rect: Rect) -> Result<Webvie
     let window = app.get_window(MAIN).ok_or_else(|| Error::msg("main window not found"))?;
     let nav_app = app.clone();
     let load_app = app.clone();
+    let window_app = app.clone();
     let builder = WebviewBuilder::new(LABEL, WebviewUrl::External(url))
         .initialization_script(INJECT)
         .on_navigation(move |url| match parse_sentinel(url) {
@@ -142,9 +196,18 @@ fn create<R: Runtime>(app: &AppHandle<R>, url: Url, rect: Rect) -> Result<Webvie
             None => url.host_str() != Some(SENTINEL_HOST),
         })
         // target=_blank links and window.open: show them in the system browser instead.
-        .on_new_window(|url, _features| {
-            if matches!(url.scheme(), "http" | "https") {
-                open_external(url.as_str());
+        // Workshop item links show in the browser itself when that option is on.
+        .on_new_window(move |url, _features| {
+            let state = window_app.state::<WorkshopState>();
+            let in_place = state.options.lock().unwrap().open_item_links;
+            match workshop_item_url(&url) {
+                Some(item) if in_place => {
+                    if let Some(webview) = window_app.get_webview(LABEL) {
+                        let _ = webview.navigate(item);
+                    }
+                }
+                _ if matches!(url.scheme(), "http" | "https") => open_external(url.as_str()),
+                _ => {}
             }
             NewWindowResponse::Deny
         })
@@ -158,6 +221,8 @@ fn create<R: Runtime>(app: &AppHandle<R>, url: Url, rect: Rect) -> Result<Webvie
             let state = load_app.state::<WorkshopState>();
             let ids = state.queued.lock().unwrap().clone();
             let library = state.library.lock().unwrap().clone();
+            let options = state.options.lock().unwrap().clone();
+            sync_options(&webview, &options);
             sync_library(&webview, &library);
             sync_queued(&webview, &ids);
         });
@@ -238,6 +303,20 @@ pub async fn workshop_reload<R: Runtime>(app: AppHandle<R>) -> Result<()> {
     Ok(())
 }
 
+/// Sets how the browser treats links (now and on every page it loads next).
+#[tauri::command]
+pub async fn workshop_set_options<R: Runtime>(
+    app: AppHandle<R>,
+    state: tauri::State<'_, WorkshopState>,
+    options: Options,
+) -> Result<()> {
+    *state.options.lock().unwrap() = options.clone();
+    if let Some(webview) = app.get_webview(LABEL) {
+        sync_options(&webview, &options);
+    }
+    Ok(())
+}
+
 /// Sets which items the browser shows as downloaded or outdated (now and on every page it loads next).
 #[tauri::command]
 pub async fn workshop_set_library<R: Runtime>(
@@ -272,6 +351,30 @@ mod tests {
 
     fn parse(url: &str) -> Option<Request> {
         parse_sentinel(&Url::parse(url).unwrap())
+    }
+
+    fn item(url: &str) -> Option<String> {
+        workshop_item_url(&Url::parse(url).unwrap()).map(String::from)
+    }
+
+    #[test]
+    fn recognises_workshop_item_links() {
+        let page = Some("https://steamcommunity.com/sharedfiles/filedetails/?id=42".to_owned());
+        assert_eq!(item("https://steamcommunity.com/sharedfiles/filedetails/?id=42"), page);
+        assert_eq!(item("https://steamcommunity.com/workshop/filedetails/?searchtext=&id=42"), page);
+        assert_eq!(item("steam://url/CommunityFilePage/42"), page);
+        let inner = "https%3A%2F%2Fsteamcommunity.com%2Fsharedfiles%2Ffiledetails%2F%3Fid%3D42";
+        assert_eq!(item(&format!("https://steamcommunity.com/linkfilter/?u={inner}")), page);
+        assert_eq!(item(&format!("https://steamcommunity.com/linkfilter/?url={inner}")), page);
+    }
+
+    #[test]
+    fn ignores_other_links() {
+        assert_eq!(item("https://steamcommunity.com/app/281990/workshop/"), None);
+        assert_eq!(item("https://steamcommunity.com/sharedfiles/filedetails/?id=abc"), None);
+        assert_eq!(item("https://steamcommunity.com.evil.com/sharedfiles/filedetails/?id=1"), None);
+        assert_eq!(item("https://example.com/sharedfiles/filedetails/?id=1"), None);
+        assert_eq!(item("https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fgithub.com"), None);
     }
 
     #[test]

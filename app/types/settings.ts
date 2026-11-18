@@ -10,4 +10,6 @@ export interface AppSettings {
   /** Periodic update check (only when enabled). */
   updateCheckEnabled: boolean
   updateCheckMinutes: number
+  /** Workshop item links (item cards, Workshop browser pop-ups and off-site links) open in the Workshop browser. */
+  openItemLinksInWorkshop: boolean
 }

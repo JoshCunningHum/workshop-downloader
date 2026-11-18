@@ -64,7 +64,10 @@ const nav = computed<NavigationMenuItem[]>(() => [
     </template>
 
     <template #footer>
-      <UColorModeButton />
+      <div class="flex items-center gap-1">
+        <UColorModeButton />
+        <SidebarSettingsMenu />
+      </div>
     </template>
   </UDashboardSidebar>
 </template>
