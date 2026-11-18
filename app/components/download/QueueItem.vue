@@ -3,7 +3,7 @@ import { ROUTES } from '~/constants/routes'
 import type { QueueEntry } from '~/types/downloads'
 
 // A queued item, laid out like a download row: tick it to include it in "Download".
-const props = defineProps<{ entry: QueueEntry }>()
+const props = defineProps<{ entry: QueueEntry, noDetails?: boolean }>()
 const emit = defineEmits<{ toggle: [on: boolean | 'indeterminate'], remove: [] }>()
 
 const item = computed(() => props.entry.details)
@@ -24,6 +24,7 @@ const status = computed(() => props.entry.downloaded
     <WorkshopItemTooltip
       :item-id="item.id"
       :details="item"
+      :disabled="noDetails"
       class="flex flex-1 items-center gap-3"
     >
       <WorkshopItemThumbnail

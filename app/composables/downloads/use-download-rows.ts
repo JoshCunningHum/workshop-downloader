@@ -27,6 +27,10 @@ export function useDownloadRows() {
     state: itemState(job, itemId).state
   }))))
 
+  // Speed graphs of rows that are gone (Clear history) are dropped.
+  const speed = useItemSpeed()
+  watch(() => rows.value.map(r => r.key).join(), () => speed.prune(rows.value.map(r => r.key)))
+
   // Share of an item downloaded so far (0..1); size falls back to the Web API's file size.
   function ratio(row: DownloadRow) {
     const p = row.job.progress[row.itemId]

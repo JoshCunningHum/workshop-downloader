@@ -20,6 +20,8 @@ interface Options {
 // The settings form of a game's page. Text inputs edit strings; empty strings are saved back as null.
 export function useGameSettings({ app, adapter, adapters, accounts, run, onModsFolderChanged }: Options) {
   const catalog = useCatalog()
+  const adapterLookup = useAdapters()
+  const library = useLibrary()
   const toast = useToast()
 
   type AppForm = AppRow & { name: string, installPath: string, modsPath: string, manualGameVersion: string }
@@ -62,6 +64,7 @@ export function useGameSettings({ app, adapter, adapters, accounts, run, onModsF
     const before = app.value.modsPath ?? null
     await run('Saving', async () => {
       const f = form.value!
+      const adapterBefore = await adapterLookup.idFor(app.value)
       await catalog.updateApp(app.value.appId, {
         name: f.name || null,
         installPath: f.installPath || null,
@@ -73,7 +76,14 @@ export function useGameSettings({ app, adapter, adapters, accounts, run, onModsF
         retention: Math.max(0, Number(f.retention) || 0),
         manualGameVersion: f.manualGameVersion || null
       })
-      toast.add({ title: 'Saved', color: 'success' })
+      // Item versions come from the adapter's rules, so a different adapter means re-reading them.
+      const adapterAfter = await adapterLookup.idFor({ appId: app.value.appId, adapterId: f.adapterId || null })
+      const redetected = adapterAfter !== adapterBefore ? await library.redetectApp(app.value.appId) : 0
+      toast.add({
+        title: 'Saved',
+        description: redetected ? `Re-detected item versions of ${redetected} snapshot(s) with the new adapter.` : undefined,
+        color: 'success'
+      })
     })
     // `app` is reloaded by run(); a failed save leaves it unchanged.
     const after = app.value.modsPath ?? null

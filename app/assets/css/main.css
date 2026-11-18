@@ -16,3 +16,23 @@
   --color-green-900: #0A5331;
   --color-green-950: #052E16;
 }
+
+/* Workshop descriptions rendered from BBCode (utils/bbcode.ts). */
+@utility bbcode {
+  overflow-wrap: anywhere;
+
+  & :is(h4, h5, h6) { margin: 0.5em 0 0.25em; font-weight: 600; color: var(--ui-text-highlighted); }
+  & h4 { font-size: 1.15em; }
+  & h5 { font-size: 1.05em; }
+  & ul { padding-left: 1.25em; list-style: disc; }
+  & ol { padding-left: 1.25em; list-style: decimal; }
+  & blockquote { margin: 0.25em 0; padding-left: 0.5em; border-left: 2px solid var(--ui-border-accented); }
+  & pre { margin: 0.25em 0; padding: 0.25em 0.5em; overflow-x: auto; border-radius: 4px; background: var(--ui-bg-elevated); }
+  & a { color: var(--ui-primary); text-decoration: underline; }
+  & img { max-width: 100%; margin: 0.25em 0; border-radius: 4px; }
+  & hr { margin: 0.5em 0; border-color: var(--ui-border); }
+  & table { border-collapse: collapse; }
+  & :is(td, th) { padding: 0.125em 0.375em; border: 1px solid var(--ui-border); }
+  & .bb-spoiler { background: var(--ui-text-muted); color: transparent; border-radius: 2px; }
+  & .bb-spoiler:hover { color: inherit; background: transparent; }
+}

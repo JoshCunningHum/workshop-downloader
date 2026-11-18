@@ -9,6 +9,7 @@ mod sidecar;
 mod steam_api;
 mod steam_local;
 mod steamcmd;
+mod workshop_browser;
 
 use std::sync::Arc;
 use tauri::Manager;
@@ -21,7 +22,8 @@ pub fn run() {
     tauri::Builder::default()
         // Must be registered first. A second launch focuses the existing window instead.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
+            // get_window, not get_webview_window: the workshop browser makes "main" a multi-webview window.
+            if let Some(window) = app.get_window("main") {
                 let _ = window.unminimize();
                 let _ = window.set_focus();
             }
@@ -46,6 +48,7 @@ pub fn run() {
             let jobs = steamcmd::job::JobManager::new(steamcmd_root, host.clone(), DEFAULT_CONCURRENCY);
 
             app.manage(host);
+            app.manage(workshop_browser::WorkshopState::default());
             app.manage::<Arc<steamcmd::job::JobManager>>(jobs);
             Ok(())
         })
@@ -78,6 +81,14 @@ pub fn run() {
             accounts::account_delete_password,
             adapters_fs::read_files,
             files::open_in_file_manager,
+            workshop_browser::workshop_show,
+            workshop_browser::workshop_set_bounds,
+            workshop_browser::workshop_hide,
+            workshop_browser::workshop_navigate,
+            workshop_browser::workshop_back,
+            workshop_browser::workshop_forward,
+            workshop_browser::workshop_reload,
+            workshop_browser::workshop_set_queued,
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

@@ -1,43 +1,68 @@
 <script setup lang="ts">
+import { openUrl } from '@tauri-apps/plugin-opener'
 import type { ItemLibraryInfo } from '~/types/items'
 import type { ItemDetails } from '~/types/steam'
 
 // Everything known about a workshop item: Steam figures, description, tags and library state.
+// `expanded` (the card is Shift-locked) shows the whole description, title and tags.
 const props = defineProps<{
   itemId: string
   remote: ItemDetails | null
   loadingRemote: boolean
   local: ItemLibraryInfo | null
+  expanded?: boolean
 }>()
 
 const title = computed(() => props.remote?.title || props.local?.title || props.itemId)
 const missing = computed(() => !!props.remote && props.remote.result !== 1)
 
-/** Plain-text excerpt of the BBCode description. */
-const excerpt = computed(() => {
-  const text = (props.remote?.description ?? '')
-    .replace(/\[url=[^\]]*\]/gi, '')
-    .replace(/\[\/?[a-z*]+(=[^\]]*)?\]/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return text.length > 320 ? `${text.slice(0, 320)}…` : text
-})
+/** The BBCode description as (escaped, tag-whitelisted) HTML. */
+const description = computed(() => props.remote?.description ? bbcodeToHtml(props.remote.description) : '')
+
+/** Links in the description open in the system browser, not in the app. */
+function openLink(event: MouseEvent) {
+  const link = event.target instanceof Element ? event.target.closest('a[href]') : null
+  if (!link) return
+  event.preventDefault()
+  openUrl(link.getAttribute('href')!).catch(() => {})
+}
+
+// The image box keeps its size while the details or the image load, so the card doesn't jump.
+const showImage = computed(() => !!props.remote?.previewUrl || (props.loadingRemote && !props.remote))
+const imageLoaded = ref(false)
+watch(() => props.remote?.previewUrl, () => imageLoaded.value = false)
 
 const count = (n: number | undefined) => (n ?? 0).toLocaleString()
 const tags = computed(() => props.remote?.tags ?? [])
+const shownTags = computed(() => props.expanded ? tags.value : tags.value.slice(0, 10))
 </script>
 
 <template>
-  <img
-    v-if="remote?.previewUrl"
-    :src="remote.previewUrl"
-    alt=""
-    class="max-h-44 w-full object-cover"
+  <div
+    v-if="showImage"
+    class="relative h-44 w-full shrink-0 bg-elevated"
   >
+    <UIcon
+      v-if="!imageLoaded"
+      name="i-lucide-image"
+      class="absolute inset-0 m-auto size-6 text-dimmed"
+    />
+    <img
+      v-if="remote?.previewUrl"
+      :src="remote.previewUrl"
+      alt=""
+      class="absolute inset-0 size-full object-cover transition-opacity duration-200"
+      :class="imageLoaded ? 'opacity-100' : 'opacity-0'"
+      @load="imageLoaded = true"
+    >
+  </div>
 
   <div class="space-y-2 p-3 text-xs">
     <div>
-      <p class="line-clamp-2 text-sm font-semibold text-highlighted">
+      <p
+        class="text-sm font-semibold text-highlighted"
+        :class="{ 'line-clamp-2': !expanded }"
+      >
         {{ title }}
       </p>
       <p class="text-muted">
@@ -104,12 +129,15 @@ const tags = computed(() => props.remote?.tags ?? [])
         <dd>{{ formatTime(remote.timeUpdated) }}</dd>
       </dl>
 
-      <p
-        v-if="excerpt"
-        class="line-clamp-5 text-muted"
-      >
-        {{ excerpt }}
-      </p>
+      <!-- eslint-disable vue/no-v-html -- bbcodeToHtml escapes the text and emits whitelisted tags only -->
+      <div
+        v-if="description"
+        class="bbcode text-muted"
+        :class="{ 'max-h-28 overflow-hidden mask-b-from-60%': !expanded }"
+        @click="openLink"
+        v-html="description"
+      />
+      <!-- eslint-enable vue/no-v-html -->
     </template>
 
     <div
@@ -157,7 +185,7 @@ const tags = computed(() => props.remote?.tags ?? [])
       class="flex flex-wrap gap-1"
     >
       <UBadge
-        v-for="tag in tags.slice(0, 10)"
+        v-for="tag in shownTags"
         :key="tag"
         color="neutral"
         variant="outline"
@@ -166,9 +194,16 @@ const tags = computed(() => props.remote?.tags ?? [])
         {{ tag }}
       </UBadge>
       <span
-        v-if="tags.length > 10"
+        v-if="tags.length > shownTags.length"
         class="text-muted"
-      >+{{ tags.length - 10 }}</span>
+      >+{{ tags.length - shownTags.length }}</span>
     </div>
+
+    <p
+      v-if="!expanded"
+      class="text-xs text-dimmed"
+    >
+      Hold ⇧ Shift to read more
+    </p>
   </div>
 </template>

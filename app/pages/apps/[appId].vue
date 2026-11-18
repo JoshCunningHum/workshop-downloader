@@ -42,7 +42,11 @@ const view = ref<'items' | 'settings'>('items')
           @open-settings="view = 'settings'"
         />
 
-        <template v-if="view === 'items'">
+        <!-- One block, so the selection bar sits close to the table instead of a panel gap away. -->
+        <div
+          v-if="view === 'items'"
+          class="space-y-2"
+        >
           <GameSelectionBar
             :count="selected.size"
             @download="items.download([...selected])"
@@ -60,7 +64,7 @@ const view = ref<'items' | 'settings'>('items')
             @link="items.link"
             @unlink="items.unlink"
           />
-        </template>
+        </div>
 
         <GameSettingsForm
           v-else

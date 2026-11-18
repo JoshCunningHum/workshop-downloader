@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
+import type { TableColumn, TableRow } from '@nuxt/ui'
 import type { GameItemRow } from '~/types/games'
 import { ROUTES } from '~/constants/routes'
 
 // The workshop items of a game: versions, active snapshot, link status and per-row actions.
-defineProps<{ rows: GameItemRow[], selected: Set<string>, allSelected: boolean }>()
+const props = defineProps<{ rows: GameItemRow[], selected: Set<string>, allSelected: boolean }>()
 const emit = defineEmits<{
   'toggle': [id: string, on: boolean | 'indeterminate']
   'toggle-all': [on: boolean | 'indeterminate']
@@ -14,6 +14,23 @@ const emit = defineEmits<{
 }>()
 
 const jobsStore = useJobs()
+
+// Select mode (something is ticked): clicking anywhere on a row toggles it, except on its
+// links, buttons and checkbox, which keep their own behaviour. Ticked rows are tinted green.
+const selecting = computed(() => props.selected.size > 0)
+function toggleRow(_event: Event, row: TableRow<GameItemRow>) {
+  const id = row.original.item.id
+  emit('toggle', id, !props.selected.has(id))
+}
+const meta = computed(() => ({
+  class: {
+    // `!`: the table's own hover background would otherwise win over the tint.
+    tr: (row: TableRow<GameItemRow>) => [
+      selecting.value ? 'cursor-pointer' : '',
+      props.selected.has(row.original.item.id) ? 'bg-primary/10! hover:bg-primary/15!' : ''
+    ].join(' ').trim()
+  }
+}))
 
 const columns: TableColumn<GameItemRow>[] = [
   { id: 'select' },
@@ -29,6 +46,8 @@ const columns: TableColumn<GameItemRow>[] = [
   <UTable
     :data="rows"
     :columns="columns"
+    :meta="meta"
+    :on-select="selecting ? toggleRow : undefined"
     :ui="{ td: 'py-0' }"
   >
     <template #select-header>

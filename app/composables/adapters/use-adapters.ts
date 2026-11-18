@@ -2,6 +2,7 @@ import { builtinAdapters } from '~/lib/adapters/builtin'
 import { detectGameVersion, detectItemVersions } from '~/lib/adapters/engine'
 import type { AdapterRow, AppRow, ItemRow } from '~/lib/db/schema'
 import * as adapters from '~/lib/services/adapters'
+import * as apps from '~/lib/services/apps'
 import * as items from '~/lib/services/items'
 import * as snapshots from '~/lib/services/snapshots'
 import * as steam from '~/lib/services/steam'
@@ -10,12 +11,26 @@ import type { AdapterDefinition, ExtractContext } from '~/types/adapters'
 // Adapters: picking the one for a game, and running its version rules.
 export function useAdapters() {
   /** The app's chosen adapter, else one written for its AppID, else the generic one. */
-  async function forApp(app: Pick<AppRow, 'appId' | 'adapterId'>): Promise<AdapterDefinition> {
-    const all = await adapters.list()
+  function pick(app: Pick<AppRow, 'appId' | 'adapterId'>, all: AdapterRow[]): AdapterDefinition {
     const chosen = all.find(a => a.id === app.adapterId)
       ?? all.find(a => a.appId === app.appId)
       ?? all.find(a => a.id === 'generic')
     return chosen?.definition ?? builtinAdapters[0]!
+  }
+
+  async function forApp(app: Pick<AppRow, 'appId' | 'adapterId'>): Promise<AdapterDefinition> {
+    return pick(app, await adapters.list())
+  }
+
+  /** Id of the adapter the app uses (see forApp). */
+  async function idFor(app: Pick<AppRow, 'appId' | 'adapterId'>): Promise<string> {
+    return pick(app, await adapters.list()).id
+  }
+
+  /** Apps whose adapter, chosen or automatic, is `adapterId`. */
+  async function appsUsing(adapterId: string): Promise<AppRow[]> {
+    const all = await adapters.list()
+    return (await apps.list()).filter(app => pick(app, all).id === adapterId)
   }
 
   async function gameVersion(app: AppRow, adapter?: AdapterDefinition) {
@@ -66,6 +81,8 @@ export function useAdapters() {
     save: adapters.save,
     remove: adapters.remove,
     forApp,
+    idFor,
+    appsUsing,
     gameVersion,
     itemVersions,
     detectBest

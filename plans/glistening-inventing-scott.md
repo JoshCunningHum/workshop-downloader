@@ -1,115 +1,100 @@
-# Tidy the frontend into an Atlas-style structure
+# Download queue, paste-anywhere, and item search
 
 ## Context
 
-The frontend grew feature by feature and is now uneven: `pages/apps/[appId].vue` is 689 lines
-(store header, info bar, item table with selection, settings form), `useJobs.ts` is 303, and
-several components/pages sit at 200–280. Composables mix three concerns — drizzle queries, Tauri
-`invoke` calls and the business logic combining them — and 5 components plus 2 pages call
-`invoke`/the DB directly. Types live inside composables; there is no constants or routes module.
+Today, pasting into the workshop input shows resolved items as per-game cards right under the
+input, and you start downloads from there. The user wants:
 
-Goal: mirror `../Atlas/frontend` — thin pages composing feature components; feature-grouped
-hooks; a service layer over a low-level client; shared `types/` and `constants/` — so no route,
-component or composable carries too much. **Pure restructuring: no behaviour or UI change.**
+1. A **Queue** tab on Downloads holding pending (not yet started) items. Pasting a workshop
+   link/id adds it to the queue automatically (resolved via the Steam Web API). Items whose latest
+   revision is already downloaded are still added, but **unticked**.
+2. **Ctrl+V (⌘V on macOS) anywhere** the workshop input is shown pastes into it and queues, unless
+   another input has focus — via `defineShortcuts`.
+3. Queued items look like the download rows (same row layout), not the current group cards.
+4. A small **"Search ..."** input on the game page's item list, next to "Update outdated", that
+   filters the table.
 
-Decisions (from the user): services cover **DB queries and Tauri calls**; composable files use
-Atlas **kebab-case** (`use-jobs.ts`); **frontend only** (src-tauri untouched).
+Decisions: clipboard is read with the **Tauri clipboard plugin** (read-text only); the queue is
+**in memory** (lost on restart). Starting downloads from the queue stays manual.
 
-## Target layout (`app/`)
+## Clipboard (Ctrl/⌘+V anywhere)
 
-```
-pages/                 thin route files: load via a page composable, render feature components
-layouts/ middleware/ plugins/      unchanged (import paths only)
-components/
-  OpenFolderButton.vue           shared components stay at the root (Atlas: components/*.tsx)
-  download/  game/  workshop-item/  workshop-link/  adapter/  mods-import/
-  settings/  setup/  sidebar/   (existing, folders renamed to lowercase)
-composables/           Atlas hooks/: one folder per feature, kebab-case files
-  use-attempt.ts  use-db.ts      generic hooks at the root
-  downloads/ games/ items/ adapters/ jobs/ library/ settings/ setup/ steam/ mods-import/ workshop-link/
-lib/
-  api/tauri.ts                   the client: command<T>(name, args) + stream<E>(name, args, onEvent)
-  db/                            moved from app/db (client, migrate, schema) + instance.ts (setDb/db)
-  adapters/                      moved from app/adapters (engine, envExt, jsonPath, builtin/)
-  services/<domain>.ts           all data access: drizzle queries + Tauri commands, plain functions
-types/<domain>.ts      shared types (moved out of composables and adapters/types.ts)
-constants/<feature>.ts constants + routes.ts (route builders)
-utils/                 pure helpers (auto-imported), kebab-case file names
-```
+`defineShortcuts` calls `preventDefault()`, so the handler must read the clipboard itself.
+- Add `@tauri-apps/plugin-clipboard-manager` + crate `tauri-plugin-clipboard-manager = "2"`; register
+  `.plugin(tauri_plugin_clipboard_manager::init())` in `src-tauri/src/lib.rs`; capability
+  `clipboard-manager:allow-read-text` (read only) in `src-tauri/capabilities/default.json`.
+  Install commands are queued for the user (the sandbox blocks the registries).
+- `lib/services/clipboard.ts`: `readText()` wrapper (keeps plugin imports in the service layer).
+- `components/workshop-link/Input.vue`: `defineShortcuts({ meta_v: handler })` — `meta` maps to ⌘ on
+  macOS and Ctrl elsewhere; without `usingInput` it doesn't fire while any input/textarea is focused.
+  The handler reads the clipboard, puts the text in the input and emits `submit`. When the workshop
+  input itself is focused, a native paste happens instead and an `@paste` handler emits `submit`
+  after the text lands (`nextTick`). Ctrl+K stays.
 
-Nuxt wiring: `nuxt.config.ts` → `imports: { dirs: ['composables/**'] }` so nested kebab-case
-composables auto-import (export names stay `useJobs` etc.). Components keep their current tag names
-via folder prefixes (`components/download/Item.vue` → `DownloadItem`, `workshop-item/Tooltip.vue` →
-`WorkshopItemTooltip`, `mods-import/Dialog.vue` → `ModsImportDialog`), so templates barely change.
-`lib/`, `services/`, `types/`, `constants/` are imported explicitly (`~/lib/services/catalog`), as Atlas does.
+## Queue
 
-## Layers
+- `types/downloads.ts`: `QueueEntry { details: ItemDetails, appName: string | null, checked: boolean, downloaded: boolean, hasSnapshot: boolean }`; `DownloadTab` gains `'queue'`.
+- `utils/queue.ts` (pure, unit-tested): `toQueueEntries(details, latestTimes, appNames)` — only
+  `result === 1` items with an AppID; `downloaded` = newest snapshot ≥ Steam `timeUpdated`;
+  `checked = !downloaded`.
+- `composables/downloads/use-download-queue.ts` (module-level state, like `useJobs`), replacing
+  `composables/workshop-link/use-workshop-resolve.ts`:
+  - `add(text)`: `parseWorkshopIds` → `steam.resolve` (expands collections) →
+    `snapshots.latestTimes` + `steam.appNames` → create apps seen for the first time (current
+    `addNewApps` logic, incl. the sidebar refresh) → merge entries by item id (a re-paste refreshes the
+    entry in place). Not-found/private ids → warning toast. Returns how many were added.
+  - `download()`: per app, `catalog.ensureApp` + `catalog.upsertItems` for the ticked entries, skip
+    items already downloading, `jobs.enqueue`; ticked entries leave the queue; toast as today.
+  - `toggle`, `toggleAll`, `remove(id)`, `clear()`, counts; `tab` (shared Downloads tab state, set to
+    `'queue'` when items are added).
+- `constants/downloads.ts`: add the Queue tab first (`i-lucide-list-plus`; colour `info`, distinct
+  from Active/Finished/Failed), with its empty state ("Paste workshop links or ids to queue them").
 
-**`lib/api/tauri.ts`** — `command<T>(name, args)` wraps `invoke` and turns the Rust error string
-into an `Error`; `stream<E>(name, args, onEvent)` creates the `Channel`. Only services import it.
+## UI
 
-**`lib/services/`** — stateless functions, one file per domain, owning every query/command:
-`settings` (rows + `jobs_set_concurrency`), `apps` (apps table, item counts), `items` (workshop_items,
-latest snapshot times), `snapshots` (rows + `snapshot_delete`/`snapshot_size`), `links` (rows +
-`link_create`/`link_remove`/`links_verify`), `jobs` (job rows + `job_start`/`job_cancel`),
-`accounts` (rows + keyring commands), `adapters` (rows + `read_files`), `steam` (web API + local
-install commands), `steamcmd` (`steamcmd_status`/`steamcmd_install`/`steam_app_index`), `app-index`
-(steam_apps table), `mods` (`mods_scan`/`mods_adopt`), `files` (`open_in_file_manager`), `fswatch`
-(dev page). Bodies are moved verbatim from today's composables.
+- `components/workshop-link/Section.vue`: input + "Add to queue" button + the two alerts (no ids
+  found, no library folder). Submit/paste → `queue.add` → clear the input → toast "Added N item(s) to
+  the queue"; off the Downloads page the toast gets a "View queue" action (→ Downloads, Queue tab).
+  The per-game cards, "skip downloaded" switch and "Download all groups" go away;
+  `components/workshop-link/ResolvedGroup.vue` is deleted.
+- `components/download/QueueItem.vue`: same row as `download/Item.vue` — checkbox, hover card +
+  thumbnail, title, game name, size; a badge "downloaded" / "update" / "new"; a remove (×) button.
+  No progress bar (nothing is running yet).
+- `components/download/QueueList.vue`: toolbar (select all checkbox, "Download N" primary button
+  disabled without a library folder, "Clear queue") + the rows, `v-auto-animate` like the other tabs.
+- `components/download/List.vue`: tabs become Queue | Active | Finished | Failed; the Queue tab
+  renders `DownloadQueueList`; tab state comes from the queue composable so pasting switches to it.
+- Game page: `game/InfoBar.vue` gets `UInput size="xs" icon="i-lucide-search" placeholder="Search ..."`
+  right before "Update outdated" (`v-model:search`); `composables/games/use-game-items.ts` adds
+  `search` + `visibleRows` (title or id contains the text, case-insensitive) used by the table;
+  "select all" applies to visible rows. `pages/apps/[appId].vue` wires it and drops the old
+  `@queued="refresh"` (downloads now start from the queue).
 
-**Composables** keep reactive state and logic that combines services (e.g. `ensureApp`,
-`checkUpdates`, `activate`/`prune`/`removeItem`, the job lifecycle, mods import, setup steps).
-Pass-through composables disappear: `useSteamApi`, `useAccounts`, `useSteamAppIndex` → callers
-import the service. `useDb` keeps only the `ready`/`error` state; `db()` moves to `lib/db/instance.ts`.
+## Files
 
-**`types/`** — `steam.ts` (ItemDetails, Resolved, InstalledGame, AppDetails), `jobs.ts` (JobEvent,
-LiveJob, ItemState, GuardKind), `steamcmd.ts` (SteamCmdStatus, AppEntry, AppIndexEvent), `mods.ts`
-(FoundFolder, ImportCandidate, ImportStatus), `settings.ts` (AppSettings), `adapters.ts` (was
-`adapters/types.ts`). DB row types stay in `lib/db/schema.ts`.
+- New: `lib/services/clipboard.ts`, `utils/queue.ts`, `composables/downloads/use-download-queue.ts`,
+  `components/download/QueueItem.vue`, `components/download/QueueList.vue`, `test/queue.test.ts`
+- Changed: `components/workshop-link/{Input,Section}.vue`, `components/download/List.vue`,
+  `constants/downloads.ts`, `types/downloads.ts`, `components/game/InfoBar.vue`,
+  `composables/games/use-game-items.ts`, `pages/apps/[appId].vue`, `package.json`,
+  `src-tauri/{Cargo.toml,src/lib.rs,capabilities/default.json}`
+- Deleted: `components/workshop-link/ResolvedGroup.vue`, `composables/workshop-link/use-workshop-resolve.ts`
 
-**`constants/`** — `settings.ts` (defaultSettings), `setup.ts` (SetupStatus, SETUP_STEPS),
-`downloads.ts` (tab colours, empty states, item-state badge colours), `mods-import.ts` (skip
-reasons), `settings-categories.ts`, `routes.ts` (`ROUTES.app(id)`, `ROUTES.item(id)`,
-`ROUTES.settings(category)`, …) replacing hard-coded `/apps/${id}`-style strings.
+## Commits (tests separate)
 
-## Splits (largest first)
-
-| Today | Becomes |
-|---|---|
-| `pages/apps/[appId].vue` (689) | page + `games/use-game-page.ts` (load/refresh, store fetch) + `games/use-game-items.ts` (rows, selection, download/link/unlink/remove) + `games/use-game-settings.ts` (form, save, browse, detect, mods folder path); components `game/StoreHeader`, `game/InfoBar`, `game/ItemsTable`, `game/SelectionBar`, `game/SettingsForm` |
-| `composables/useJobs.ts` (303) | `jobs/use-jobs.ts` (state + enqueue/cancel/retry/clear) + `jobs/use-job-events.ts` (event handling, item done, finished) + `utils/job-state.ts` (itemState, historyItems, jobProgress) |
-| `pages/adapters/[id].vue` (277) | page + `adapters/use-adapter-editor.ts`; `adapter/Form`, `adapter/TestCard`, `adapter/RuleList` (was RuleListEditor) |
-| `WorkshopItemTooltip.vue` (267) | `workshop-item/Tooltip` (positioning only) + `workshop-item/DetailsCard` (content) + `items/use-item-details.ts` (cached Steam fetch + library data) |
-| `WorkshopLink/Section.vue` (266) | `workshop-link/Section` + `workshop-link/ResolvedGroup` + `workshop-link/use-workshop-resolve.ts` |
-| `ModsImportDialog.vue` (236) | `mods-import/Dialog` + `mods-import/CandidateRow`; logic stays in `mods-import/use-mods-import.ts` |
-| `pages/items/[id].vue` (229) | page + `items/use-item-page.ts`; `workshop-item/Summary`, `workshop-item/SnapshotList` |
-| `pages/index.vue` (208) | page + `downloads/use-download-rows.ts` (rows, ratio sort, tabs); `download/List`, `download/GuardPrompt`, `download/WorkerBadges`, `download/LogModal` |
-| thumbnail + placeholder markup repeated in 4 places | `workshop-item/Thumbnail` |
-| game card markup in `pages/apps/index.vue` | `game/Card` |
-
-Size targets after the refactor: pages ≤ ~120 lines, components ≤ ~200, composables ≤ ~150.
-
-## Order of work (each step leaves the app building; one refactor commit per step)
-
-1. Move `app/db` → `lib/db` and `app/adapters` → `lib/adapters`, `adapters/types.ts` → `types/adapters.ts`;
-   update `drizzle.config.ts` schema path and the migrations glob in `migrate.ts`. Test import-path
-   updates go in their own commit right after (repo rule: tests separate).
-2. Add `types/` and `constants/` (move definitions out of composables; no logic change).
-3. Add `lib/api/tauri.ts` and `lib/services/*`; rewire composables, components and pages to them; drop
-   the pass-through composables. No `invoke`/`db()` left outside `lib/`.
-4. Move composables into feature folders with kebab-case names; add `imports.dirs`.
-5. Rename component folders to lowercase feature folders; extract `WorkshopItemThumbnail` and `GameCard`.
-6. Split the large pages/components/composables per the table; use `ROUTES` for links/navigation.
-7. Rename `utils` files to kebab-case (`workshop-input.ts`, `job-state.ts`); test imports in their own commit.
+1. ➕/chore: clipboard plugin dependency + registration + capability.
+2. feat: download queue + Queue tab + queue rows (replaces the resolved cards).
+3. feat: Ctrl/⌘+V anywhere the workshop input is shown.
+4. feat: item search on the game page.
+5. test: `toQueueEntries`.
 
 ## Verification
 
-- After every step: `bun run typecheck`, `bun run lint`, `bunx vitest run` (queued for the user — the
-  sandbox can't read `node_modules/js-tokens`); expect only today's existing errors (nuxt.config
-  `process`, the 4 lint errors) and 37/37 tests. `cargo test` is unaffected.
-- Structural checks: `grep -rn "invoke(\|invoke<\|db()" app --exclude-dir=lib` returns nothing; no file
-  over the size targets (`wc -l`).
-- Manual smoke in `bun tauri dev` (behaviour must be identical): setup flow on a fresh DB; sidebar
-  games + counts; paste a workshop link → resolve → queue; Downloads tabs, progress, log, retry;
-  game page items table, settings form, import existing; item page snapshots; adapter editor test
-  card; Settings categories incl. Update app list; folder buttons; hover card.
+- `bunx vitest run` (new `test/queue.test.ts`: ticked/unticked by snapshot time, not-found and
+  app-less items dropped), `bun run typecheck`, `bun run lint` — expect only the existing errors;
+  `cargo test --workspace` and `cargo clippy` after adding the crate (queued for the user).
+- Manual (`bun tauri dev`): on Downloads with nothing focused press Ctrl/⌘+V with a workshop URL →
+  Queue tab opens with the item ticked; paste an already-downloaded item → added unticked; paste a
+  collection → all its items; focus another input (e.g. Settings) and paste → normal paste only;
+  paste on a game page → toast with "View queue"; Download N → items move to Active; game page
+  "Search ..." filters the table.

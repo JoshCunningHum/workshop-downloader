@@ -1,30 +1,9 @@
 <script setup lang="ts">
 import { ROUTES } from '~/constants/routes'
 
-const catalog = useCatalog()
 const updates = useUpdateChecker()
 const toast = useToast()
-
-const { data: apps, refresh } = useAsyncData('apps', async () => {
-  const [rows, counts] = await Promise.all([catalog.listApps(), catalog.itemCountsByApp()])
-  return rows.map(app => ({ ...app, items: counts[app.appId] ?? 0 }))
-})
-
-// Fill in Steam store data (banner, description, ...) for apps that lack it, one at a time,
-// updating each card as it arrives. Failures (offline, rate limit) are retried next visit.
-let fetchingStore = false
-watch(apps, async (rows) => {
-  if (fetchingStore || !rows) return
-  fetchingStore = true
-  try {
-    for (const row of rows.filter(r => catalog.storeStale(r))) {
-      const updated = await catalog.refreshStore(row).catch(() => null)
-      if (updated) Object.assign(row, updated)
-    }
-  } finally {
-    fetchingStore = false
-  }
-}, { immediate: true })
+const { apps, refresh } = useGameList()
 
 async function checkAll() {
   try {

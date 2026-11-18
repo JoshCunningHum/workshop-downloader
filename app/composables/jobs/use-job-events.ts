@@ -9,6 +9,7 @@ export function useJobEvents() {
   const catalog = useCatalog()
   const library = useLibrary()
   const toast = useToast()
+  const speed = useItemSpeed()
 
   async function handle(job: LiveJob, event: JobEvent) {
     switch (event.type) {
@@ -27,14 +28,17 @@ export function useJobEvents() {
         break
       case 'progress':
         job.progress[event.itemId] = { bytes: event.bytes, total: event.total }
+        speed.record(job.id, event.itemId, event.bytes, event.total)
         break
       case 'itemDone':
         job.progress[event.itemId] = { bytes: event.sizeBytes, total: event.sizeBytes }
         job.itemsDone[event.itemId] = true
+        speed.stop(job.id, event.itemId)
         await onItemDone(job, event)
         break
       case 'itemFailed':
         job.itemErrors[event.itemId] = event.reason
+        speed.stop(job.id, event.itemId)
         break
       case 'loginOk':
         if (job.accountId !== null) await accounts.markLoginOk(job.accountId)
@@ -75,6 +79,7 @@ export function useJobEvents() {
     job.status = event.status
     job.error = event.error
     job.finishedAt = Date.now()
+    for (const itemId of job.itemIds) speed.stop(job.id, itemId)
     const bytesDone = Object.values(job.progress).reduce((sum, p) => sum + p.bytes, 0)
     await jobsDb.update(job.id, {
       status: event.status,

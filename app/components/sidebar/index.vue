@@ -3,7 +3,7 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 import { ROUTES } from '~/constants/routes'
 
 const { active } = useJobs()
-const { apps, itemCounts, refreshCounts } = useAppSelection()
+const { apps, current, itemCounts, refreshCounts } = useAppSelection()
 const route = useRoute()
 
 // Item counts change with imports, downloads and removals; re-read them on each navigation.
@@ -19,6 +19,8 @@ function openGames() {
 
 const nav = computed<NavigationMenuItem[]>(() => [
   { label: 'Downloads', icon: 'i-lucide-download', to: ROUTES.home, badge: active.value.length || undefined },
+  // Straight to the workshop of the game picked above; the game list only when none is.
+  { label: 'Workshop', icon: 'i-lucide-store', to: current.value ? ROUTES.workshopApp(current.value) : ROUTES.workshop },
   {
     label: 'Games',
     icon: 'i-lucide-gamepad-2',

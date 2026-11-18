@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import * as steam from '~/lib/services/steam'
 import { ROUTES } from '~/constants/routes'
+import { workshopHome } from '~/lib/services/workshop-browser'
 
 const { collapsed = false } = defineProps<{ collapsed?: boolean }>()
 
@@ -23,10 +24,22 @@ const items = computed(() => {
 })
 const selected = computed(() => items.value.find(i => i.value === current.value) ?? null)
 
-// Follow the game page that is open.
+/** On the Workshop tab, picking a game opens its workshop instead of its game page. */
+const onWorkshop = computed(() => route.path === ROUTES.workshop || route.path.startsWith(`${ROUTES.workshop}/`))
+
+// Follow the game (or game workshop) page that is open.
 watch(() => route.params.appId, (appId) => {
-  if (route.path.startsWith(`${ROUTES.games}/`) && appId) current.value = Number(appId)
+  const onGamePage = route.path.startsWith(`${ROUTES.games}/`) || route.path.startsWith(`${ROUTES.workshop}/`)
+  if (onGamePage && appId) current.value = Number(appId)
 }, { immediate: true })
+
+// The Workshop browser is a native layer this dropdown can't draw over; move it aside meanwhile.
+const workshop = useWorkshopBrowser()
+const open = ref(false)
+watch(open, isOpen => isOpen ? workshop.suspend() : workshop.resume())
+onBeforeUnmount(() => {
+  if (open.value) workshop.resume()
+})
 
 const search = ref('')
 const searching = ref(false)
@@ -43,7 +56,9 @@ async function select(appId: number) {
     }
   }
   current.value = appId
-  return navigateTo(ROUTES.game(appId))
+  // Same game while browsing its workshop: back to its workshop home (the route doesn't change).
+  if (route.path === ROUTES.workshopApp(appId)) return workshop.navigate(workshopHome(appId)).catch(() => {})
+  return navigateTo(onWorkshop.value ? ROUTES.workshopApp(appId) : ROUTES.game(appId))
 }
 
 /**
@@ -90,6 +105,7 @@ async function onCreate(query: string) {
     >
       <USelectMenu
         v-model:search-term="search"
+        v-model:open="open"
         :model-value="current ?? undefined"
         :items="items"
         value-key="value"

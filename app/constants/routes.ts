@@ -4,6 +4,8 @@ export const ROUTES = {
   setup: '/setup',
   games: '/apps',
   game: (appId: number) => `/apps/${appId}`,
+  workshop: '/workshop',
+  workshopApp: (appId: number) => `/workshop/${appId}`,
   item: (itemId: string) => `/items/${itemId}`,
   adapters: '/adapters',
   adapter: (id: string) => `/adapters/${id}`,
