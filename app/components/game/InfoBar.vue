@@ -10,6 +10,7 @@ defineProps<{
   busy: boolean
   canUpdate: boolean
   settingsOpen: boolean
+  historyOpen: boolean
 }>()
 const search = defineModel<string>('search', { default: '' })
 const emit = defineEmits<{
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   'check-updates': []
   'verify-links': []
   'open-settings': []
+  'open-history': []
 }>()
 </script>
 
@@ -95,6 +97,16 @@ const emit = defineEmits<{
         :loading="busy"
         @click="emit('verify-links')"
       />
+      <UTooltip text="History and restore points">
+        <UButton
+          size="xs"
+          icon="i-lucide-history"
+          color="neutral"
+          :variant="historyOpen ? 'soft' : 'outline'"
+          aria-label="History"
+          @click="emit('open-history')"
+        />
+      </UTooltip>
       <UTooltip text="Game settings">
         <UButton
           size="xs"

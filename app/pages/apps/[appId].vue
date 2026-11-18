@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// A game: store header, info bar, and either its item table or its settings.
+// A game: store header, info bar, and its item table, settings or history.
 const route = useRoute()
 const appId = Number(route.params.appId)
 
@@ -8,8 +8,8 @@ const { data, refresh, app, gameVersion, busy, run, checkUpdates, verifyLinks, d
 const items = useGameItems(appId, page)
 const { visibleRows, search, outdatedIds, selected, allSelected, selectedRows } = items
 
-// The item list, or the game's settings (opened from the gear button).
-const view = ref<'items' | 'settings'>('items')
+// The item list, the game's settings (gear button) or its history (history button).
+const view = ref<'items' | 'settings' | 'history'>('items')
 </script>
 
 <template>
@@ -34,12 +34,14 @@ const view = ref<'items' | 'settings'>('items')
           :busy="busy"
           :can-update="outdatedIds.length > 0"
           :settings-open="view === 'settings'"
+          :history-open="view === 'history'"
           @detect="detectGameVersion"
           @detect-adapter="detectAdapter"
           @update-outdated="items.download(outdatedIds)"
           @check-updates="checkUpdates"
           @verify-links="verifyLinks"
           @open-settings="view = 'settings'"
+          @open-history="view = 'history'"
         />
 
         <!-- One block, so the selection bar sits close to the table instead of a panel gap away. -->
@@ -66,6 +68,13 @@ const view = ref<'items' | 'settings'>('items')
             @release="items.release"
           />
         </div>
+
+        <HistoryPanel
+          v-else-if="view === 'history'"
+          :app-id="appId"
+          :page="page"
+          @back="view = 'items'"
+        />
 
         <GameSettingsForm
           v-else
