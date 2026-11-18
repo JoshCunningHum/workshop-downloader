@@ -1,0 +1,18 @@
+Redirecting stderr to '/steamcmd/logs/stderr.txt'
+[  0%] Checking for available updates...
+[----] Verifying installation...
+Steam Console Client (c) Valve Corporation - version 1730000000
+-- type 'quit' to exit --
+Loading Steam API...OK
+
+Connecting anonymously to Steam Public...OK
+Waiting for client config...OK
+Logging in user 'anonymous' [U:1:0] to Steam Public...OK
+Waiting for compatibility info...OK
+Downloading item 2009463077 ...
+Success. Downloaded item 2009463077 to "/lib/.staging/job-1/steamapps/workshop/content/294100/2009463077" (1234567 bytes) 
+Downloading item 1111111111 ...
+ERROR! Download item 1111111111 failed (Failure).
+Downloading item 2222222222 ...
+ERROR! Timeout downloading item 2222222222
+Unloading Steam API...OK
