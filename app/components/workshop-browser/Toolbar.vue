@@ -4,6 +4,10 @@ import { workshopHome } from '~/lib/services/workshop-browser'
 
 // Navigation for the Workshop browser: back/forward/reload/home, where it is, and messages.
 const { appId, name, location } = defineProps<{ appId: number, name: string, location: string | null }>()
+/** The queue panel on the right. */
+const queueOpen = defineModel<boolean>('queueOpen', { default: false })
+const queue = useDownloadQueue()
+const queueCount = computed(() => queue.entries.value.length)
 
 const browser = useWorkshopBrowser()
 const toast = useToast()
@@ -78,6 +82,22 @@ const address = computed(() => location?.replace(/^https?:\/\//, '') ?? '')
           :disabled="!location"
           @click="location && run(() => openUrl(location))"
         />
+      </UTooltip>
+      <UTooltip :text="queueOpen ? 'Hide queue' : 'Show queue'">
+        <UChip
+          :text="queueCount"
+          :show="queueCount > 0"
+          size="2xl"
+        >
+          <UButton
+            icon="i-lucide-list-plus"
+            color="neutral"
+            :variant="queueOpen ? 'soft' : 'ghost'"
+            :aria-label="queueOpen ? 'Hide queue' : 'Show queue'"
+            :aria-pressed="queueOpen"
+            @click="queueOpen = !queueOpen"
+          />
+        </UChip>
       </UTooltip>
     </template>
   </UDashboardNavbar>

@@ -2,6 +2,8 @@
 import { DOWNLOAD_TABS } from '~/constants/downloads'
 
 // The Queue tab: pasted items waiting to be downloaded, ticked ones start with "Download".
+// `noDetails` turns off the rows' hover cards (used beside the Workshop browser).
+defineProps<{ noDetails?: boolean }>()
 const queue = useDownloadQueue()
 const { settings } = useSettings()
 const empty = DOWNLOAD_TABS.queue.empty
@@ -51,6 +53,7 @@ const empty = DOWNLOAD_TABS.queue.empty
         v-for="entry in queue.entries.value"
         :key="entry.details.id"
         :entry="entry"
+        :no-details="noDetails"
         @toggle="queue.toggle(entry.details.id, $event)"
         @remove="queue.remove(entry.details.id)"
       />

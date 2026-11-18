@@ -7,6 +7,8 @@ const props = defineProps<{
   itemId: string
   /** Already-fetched Web API details (e.g. a freshly resolved item); skips the fetch. */
   details?: ItemDetails | null
+  /** No card (e.g. next to the Workshop browser, which it would open under). */
+  disabled?: boolean
 }>()
 
 const { remote, loadingRemote, local, load } = useItemDetails(() => props.itemId, props.details)
@@ -32,6 +34,7 @@ function follow(event: PointerEvent) {
 <template>
   <UTooltip
     v-model:open="open"
+    :disabled="disabled"
     :reference="reference"
     :delay-duration="300"
     disable-hoverable-content
