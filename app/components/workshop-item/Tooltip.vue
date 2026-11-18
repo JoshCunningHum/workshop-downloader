@@ -67,7 +67,7 @@ const contentClass = computed(() => [
     :open="open"
     :disabled="disabled"
     :reference="reference"
-    :delay-duration="300"
+    :delay-duration="0"
     disable-hoverable-content
     :content="{ side: 'right', align: 'start', sideOffset: 16, collisionPadding: 12, updatePositionStrategy: 'always' }"
     :ui="{ content: contentClass }"
