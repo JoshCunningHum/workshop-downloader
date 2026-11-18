@@ -19,6 +19,7 @@ function openGames() {
 
 const nav = computed<NavigationMenuItem[]>(() => [
   { label: 'Downloads', icon: 'i-lucide-download', to: ROUTES.home, badge: active.value.length || undefined },
+  { label: 'Workshop', icon: 'i-lucide-store', to: ROUTES.workshop },
   {
     label: 'Games',
     icon: 'i-lucide-gamepad-2',

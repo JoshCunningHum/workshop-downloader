@@ -3,12 +3,13 @@ import type { AppRow } from '~/lib/db/schema'
 import { ROUTES } from '~/constants/routes'
 
 // A game in the Games list: store banner on the left, name and badges on the right.
-defineProps<{ app: AppRow & { items: number }, outdated: number }>()
+// Opens the game's page unless `to` says otherwise (the Workshop list opens its workshop).
+defineProps<{ app: AppRow & { items: number }, outdated: number, to?: string }>()
 </script>
 
 <template>
   <NuxtLink
-    :to="ROUTES.game(app.appId)"
+    :to="to ?? ROUTES.game(app.appId)"
     class="flex overflow-hidden rounded-lg border border-default bg-default transition-colors hover:bg-elevated/50"
   >
     <img
