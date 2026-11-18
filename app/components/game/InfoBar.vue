@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AppRow } from '~/lib/db/schema'
+import { ROUTES } from '~/constants/routes'
 
 // AppID, game version and adapter of a game, with its page-level actions.
 defineProps<{
@@ -76,6 +77,14 @@ const emit = defineEmits<{
         variant="outline"
         :loading="busy"
         @click="emit('check-updates')"
+      />
+      <UButton
+        size="xs"
+        icon="i-lucide-store"
+        label="Browse workshop"
+        color="neutral"
+        variant="outline"
+        :to="ROUTES.workshopApp(app.appId)"
       />
       <UButton
         size="xs"
