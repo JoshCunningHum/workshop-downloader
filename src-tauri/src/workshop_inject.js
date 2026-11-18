@@ -34,20 +34,23 @@
     .wsd-btn[data-state="queued"], .wsd-btn[data-state="adding"] { opacity: .7; cursor: default; }
     .wsd-tile-host { position: relative; }
     .wsd-tile-btn {
-      position: absolute; top: 6px; right: 6px; z-index: 5;
-      padding: 3px 8px; border: 0; border-radius: 2px;
-      font: 12px "Motiva Sans", Arial, sans-serif; color: #d2efa9;
-      background: rgba(75, 106, 33, .92); box-shadow: 0 0 4px rgba(0, 0, 0, .6);
+      position: absolute; top: 6px; right: 6px; z-index: 50;
+      min-width: 26px; height: 26px; padding: 0 7px; border: 0; border-radius: 3px;
+      font: bold 16px/26px "Motiva Sans", Arial, sans-serif; color: #d2efa9;
+      background: rgba(75, 106, 33, .95); box-shadow: 0 0 4px rgba(0, 0, 0, .7);
+      white-space: nowrap;
     }
-    .wsd-tile-btn:hover { color: #fff; background: rgba(110, 155, 45, .95); }
-    .wsd-tile-btn[data-state="queued"] { color: #c6d4df; background: rgba(40, 60, 80, .92); }
+    .wsd-tile-btn:hover { color: #fff; background: rgba(110, 155, 45, .98); }
+    /* Hovering the tile spells out what "+" does. */
+    .wsd-tile-hover:hover .wsd-tile-btn[data-state="idle"]::after { content: " Add to queue"; font-size: 12px; font-weight: normal; }
+    .wsd-tile-btn[data-state="queued"] { color: #c6d4df; background: rgba(40, 60, 80, .95); }
   `
 
   // --- Buttons ------------------------------------------------------------------------------
 
   const LABELS = {
     item: { idle: 'Add to queue', adding: 'Adding…', queued: 'In queue ✓' },
-    tile: { idle: '+ Queue', adding: '…', queued: 'Queued ✓' },
+    tile: { idle: '+', adding: '…', queued: '✓' },
     collection: { idle: 'Add all to queue', adding: 'Adding…', queued: 'All in queue ✓' }
   }
 
@@ -125,18 +128,28 @@
     }
   }
 
-  /** Item tiles in the browse/search listings and on the workshop home page. */
+  /**
+   * Item tiles anywhere (browse grid, workshop home carousels, required items, ...): every
+   * preview image that links to an item gets a "+" in its corner. Keyed off the link rather
+   * than Steam's tile classes, which differ between pages.
+   */
   function patchTiles() {
-    for (const tile of document.querySelectorAll('.workshopItem, .workshopBrowseItem, .browseItem')) {
-      if (tile.dataset.wsdTile) continue
-      const link = tile.querySelector('a[data-publishedfileid], a[href*="filedetails/?id="]')
-      const id = link && (link.dataset.publishedfileid || idFromHref(link.getAttribute('href')))
-      if (!id) continue
-      tile.dataset.wsdTile = '1'
-      // Steam's own hover subscribe toggles on tiles go too.
-      for (const own of tile.querySelectorAll('[onclick*="SubscribeItem"], .workshopItemSubscribe')) own.classList.add('wsd-hidden')
-      tile.classList.add('wsd-tile-host')
-      tile.appendChild(makeButton('tile', [id], 'button', 'wsd-tile-btn'))
+    const current = pageId()
+    for (const link of document.querySelectorAll('a[href*="filedetails/?id="]')) {
+      if (link.dataset.wsdTile || !link.querySelector('img')) continue
+      link.dataset.wsdTile = '1'
+      const id = idFromHref(link.getAttribute('href'))
+      // The page's own item has its big button; collection rows have theirs.
+      if (!id || id === current || link.closest('.collectionItem')) continue
+      // The button goes on the image's box; one per box even if several links share it.
+      const host = link.querySelector('img').parentElement
+      if (!host || host.dataset.wsdHost) continue
+      host.dataset.wsdHost = '1'
+      if (getComputedStyle(host).position === 'static') host.classList.add('wsd-tile-host')
+      host.classList.add('wsd-tile-hover')
+      const btn = makeButton('tile', [id], 'button', 'wsd-tile-btn')
+      btn.title = 'Add to queue'
+      host.appendChild(btn)
     }
   }
 
