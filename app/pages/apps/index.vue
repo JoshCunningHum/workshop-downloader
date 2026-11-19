@@ -5,6 +5,11 @@ const updates = useUpdateChecker()
 const toast = useToast()
 const { apps, refresh } = useGameList()
 
+// Hidden games (left out of the sidebar) are listed only when asked for.
+const showHidden = ref(false)
+const hiddenCount = computed(() => apps.value?.filter(a => a.hidden).length ?? 0)
+const visibleApps = computed(() => apps.value?.filter(a => showHidden.value || !a.hidden) ?? [])
+
 async function checkAll() {
   try {
     const items = await updates.check()
@@ -23,7 +28,14 @@ async function checkAll() {
         v-if="apps?.length"
         class="flex items-center gap-2 text-sm text-muted"
       >
-        {{ apps.length }} game(s)
+        {{ apps.length - hiddenCount }} game(s)
+        <USwitch
+          v-if="hiddenCount"
+          v-model="showHidden"
+          size="sm"
+          :label="`Show hidden (${hiddenCount})`"
+          class="ms-3"
+        />
         <UButton
           class="ms-auto"
           size="xs"
@@ -45,7 +57,7 @@ async function checkAll() {
       />
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <GameCard
-          v-for="app in apps"
+          v-for="app in visibleApps"
           :key="app.appId"
           :app="app"
           :outdated="updates.outdated.value[app.appId]?.length ?? 0"

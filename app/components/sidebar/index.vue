@@ -31,7 +31,8 @@ const nav = computed<NavigationMenuItem[]>(() => [
     onSelect: openGames,
     // The game list scrolls on its own once there are many.
     ui: { childList: 'max-h-[40vh] overflow-y-auto' },
-    children: apps.value.map(app => ({
+    // Hidden games stay out of the list (see the game's settings, or the Games page).
+    children: apps.value.filter(app => !app.hidden).map(app => ({
       label: app.name ?? `App ${app.appId}`,
       to: ROUTES.game(app.appId),
       badge: itemCounts.value[app.appId] ?? ''

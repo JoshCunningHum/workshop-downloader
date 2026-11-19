@@ -23,6 +23,8 @@ export const apps = sqliteTable('apps', {
   manualGameVersion: text('manual_game_version'),
   accountId: integer('account_id'),
   autoUpdate: integer('auto_update', { mode: 'boolean' }).notNull().default(false),
+  // Left out of the sidebar's game list and picker; still on the Games page (behind "Show hidden").
+  hidden: integer('hidden', { mode: 'boolean' }).notNull().default(false),
   // Snapshots kept per item (plus pinned and active ones). 0 = keep everything.
   retention: integer('retention').notNull().default(3),
   // Steam store metadata (banner, description, developers, ...); null when the store has no page.

@@ -22,6 +22,7 @@ export function useGameSettings({ app, adapter, adapters, accounts, run, onModsF
   const catalog = useCatalog()
   const adapterLookup = useAdapters()
   const library = useLibrary()
+  const selection = useAppSelection()
   const toast = useToast()
 
   type AppForm = AppRow & { name: string, installPath: string, modsPath: string, manualGameVersion: string }
@@ -73,12 +74,15 @@ export function useGameSettings({ app, adapter, adapters, accounts, run, onModsF
         adapterId: f.adapterId || null,
         accountId: f.accountId || null,
         autoUpdate: f.autoUpdate,
+        hidden: f.hidden,
         retention: Math.max(0, Number(f.retention) || 0),
         manualGameVersion: f.manualGameVersion || null
       })
       // Item versions come from the adapter's rules, so a different adapter means re-reading them.
       const adapterAfter = await adapterLookup.idFor({ appId: app.value.appId, adapterId: f.adapterId || null })
       const redetected = adapterAfter !== adapterBefore ? await library.redetectApp(app.value.appId) : 0
+      // The sidebar lists games from its own copy; a rename or hide shows there straight away.
+      await selection.refresh()
       toast.add({
         title: 'Saved',
         description: redetected ? `Re-detected item versions of ${redetected} snapshot(s) with the new adapter.` : undefined,

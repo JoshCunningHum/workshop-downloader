@@ -54,6 +54,15 @@ defineProps<{ app: AppRow & { items: number }, outdated: number, to?: string }>(
           game {{ app.manualGameVersion || app.detectedGameVersion }}
         </UBadge>
         <UBadge
+          v-if="app.hidden"
+          size="sm"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-eye-off"
+        >
+          hidden
+        </UBadge>
+        <UBadge
           v-if="!app.installPath"
           size="sm"
           color="neutral"

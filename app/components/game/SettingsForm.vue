@@ -54,6 +54,11 @@ const { form, adapterItems, accountItems, modsFolderPath, browse, detectInstall,
         class="w-full"
       />
     </UFormField>
+    <USwitch
+      v-model="form.hidden"
+      label="Hide from the sidebar"
+      description="Left out of the sidebar's game list and picker. It stays on the Games page under Show hidden."
+    />
     <UFormField
       label="Game install folder"
       description="Used for {install} in adapter templates and game version detection."

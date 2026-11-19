@@ -12,11 +12,12 @@ const route = useRoute()
 
 onMounted(refresh)
 
-// Your games first, then the rest of the Steam app list (added as a game when picked).
+// Your games first, then the rest of the Steam app list (added as a game when picked). Hidden
+// games are left out, except the one open right now so the picker still shows it.
 const items = computed(() => {
   const owned = new Set(apps.value.map(a => a.appId))
   return [
-    ...apps.value.map(app => ({ label: app.name ?? `App ${app.appId}`, value: app.appId, inLibrary: true })),
+    ...apps.value.filter(app => !app.hidden || app.appId === current.value).map(app => ({ label: app.name ?? `App ${app.appId}`, value: app.appId, inLibrary: true })),
     ...index.value
       .filter(app => !owned.has(app.appId))
       .map(app => ({ label: app.name ?? `App ${app.appId}`, value: app.appId, inLibrary: false }))
