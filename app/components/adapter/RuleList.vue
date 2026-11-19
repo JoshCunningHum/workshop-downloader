@@ -28,9 +28,8 @@ const fileKey = computed(() => props.target === 'item' ? 'glob' : 'path')
 
 function update(i: number, patch: Partial<Loose>) {
   const next = [...rules.value]
-  const merged = { ...loose(i), ...patch } as Loose
   // Drop empty fields so the stored JSON stays clean.
-  for (const key of Object.keys(merged) as (keyof Loose)[]) if (merged[key] === '') delete merged[key]
+  const merged = Object.fromEntries(Object.entries({ ...loose(i), ...patch }).filter(([, value]) => value !== '')) as Loose
   next[i] = merged as ExtractRule
   rules.value = next
 }

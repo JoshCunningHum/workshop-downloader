@@ -15,7 +15,7 @@ export const RESTORE_GROUPS: { action: RestoreAction, title: string }[] = [
   { action: 'switch', title: 'Switch version' },
   { action: 'link', title: 'Link again' },
   { action: 'unlink', title: 'Unlink (not there yet at that time)' },
-  { action: 'missing', title: "Can't restore (that snapshot was deleted)" }
+  { action: 'missing', title: 'Can\'t restore (that snapshot was deleted)' }
 ]
 
 /** Bars shown per calendar day before "+n". */
