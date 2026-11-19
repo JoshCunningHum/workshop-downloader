@@ -247,6 +247,12 @@ export function buildDemoDb(path: string, migrationsDir: string, now = Date.now(
     })
   }
 
+  // A restore point saved last night, before this morning's update run: the links as they were.
+  const savedAt = at(1, 22, 30)
+  const savedState: Record<string, number | null> = {}
+  for (const e of [...events].sort((a, b) => a.at - b.at)) if (e.appId === sf.appId && e.at <= savedAt) savedState[e.itemId] = e.to
+  insert('restore_points', { app_id: sf.appId, label: 'Stable before the update', state: JSON.stringify(savedState), created_at: savedAt })
+
   for (const e of events) {
     insert('snapshot_events', { app_id: e.appId, item_id: e.itemId, kind: e.kind, from_snapshot_id: e.from, to_snapshot_id: e.to, at: e.at })
   }
