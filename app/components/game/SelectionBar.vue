@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Actions for the items ticked in a game's item table. The bar always takes its space (the
-// buttons are only hidden), so ticking the first item doesn't push the table down.
+// Actions for the items ticked in a game's item table, shown in the game bar's row. They always
+// take their space (the buttons are only hidden), so ticking the first item doesn't shift the row.
 defineProps<{ count: number }>()
 const emit = defineEmits<{ download: [], link: [], unlink: [], remove: [] }>()
 </script>

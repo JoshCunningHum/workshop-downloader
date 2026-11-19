@@ -32,42 +32,37 @@ const view = ref<'items' | 'settings' | 'history'>('items')
           :game-version="gameVersion"
           :adapter-name="data.adapter.name"
           :busy="busy"
-          :can-update="outdatedIds.length > 0"
-          :settings-open="view === 'settings'"
-          :history-open="view === 'history'"
+          :outdated-count="outdatedIds.length"
+          :view="view"
           @detect="detectGameVersion"
           @detect-adapter="detectAdapter"
           @update-outdated="items.download(outdatedIds)"
           @check-updates="checkUpdates"
           @verify-links="verifyLinks"
-          @open-settings="view = 'settings'"
-          @open-history="view = 'history'"
-        />
-
-        <!-- One block, so the selection bar sits close to the table instead of a panel gap away. -->
-        <div
-          v-if="view === 'items'"
-          class="space-y-2"
+          @open-view="view = $event"
         >
           <GameSelectionBar
+            v-if="view === 'items'"
             :count="selected.size"
             @download="items.download([...selected])"
             @link="items.link(selectedRows())"
             @unlink="items.unlink(selectedRows())"
             @remove="items.remove(selectedRows())"
           />
-          <GameItemsTable
-            :rows="visibleRows"
-            :selected="selected"
-            :all-selected="allSelected"
-            @toggle="items.toggle"
-            @toggle-all="items.toggleAll"
-            @download="items.download"
-            @link="items.link"
-            @unlink="items.unlink"
-            @release="items.release"
-          />
-        </div>
+        </GameInfoBar>
+
+        <GameItemsTable
+          v-if="view === 'items'"
+          :rows="visibleRows"
+          :selected="selected"
+          :all-selected="allSelected"
+          @toggle="items.toggle"
+          @toggle-all="items.toggleAll"
+          @download="items.download"
+          @link="items.link"
+          @unlink="items.unlink"
+          @release="items.release"
+        />
 
         <HistoryPanel
           v-else-if="view === 'history'"
