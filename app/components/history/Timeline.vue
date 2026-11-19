@@ -2,7 +2,9 @@
 import { EVENT_KINDS } from '~/constants/history'
 import type { ItemRow, SnapshotEventRow, SnapshotRow } from '~/lib/db/schema'
 
-// One day's changes on a time track, with a slider for the moment to restore to.
+// One day's changes on a ruler: time ticks along both edges, a full-height bar per change, and a
+// red marker for the moment to restore to. Click or drag anywhere on the ruler to move it; as a
+// slider it also takes arrow keys (1 min, Shift for 10), Home and End.
 const props = defineProps<{
   events: SnapshotEventRow[]
   range: { start: number, end: number }
@@ -14,8 +16,24 @@ const props = defineProps<{
 const point = defineModel<number>({ required: true })
 const emit = defineEmits<{ restore: [] }>()
 
-const left = (t: number) => `${((t - props.range.start) / (props.range.end - props.range.start)) * 100}%`
+const MINUTE = 60_000
+const span = computed(() => props.range.end - props.range.start)
+const pct = (t: number) => `${((t - props.range.start) / span.value) * 100}%`
 const clock = (t: number) => new Date(t).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+
+// Tick spacing that fits the range: about 60 minor ticks and 8 labelled ones at most.
+const MINOR_STEPS = [1, 2, 5, 10, 15, 30, 60, 120].map(m => m * MINUTE)
+const MAJOR_STEPS = [5, 10, 15, 30, 60, 120, 180, 360].map(m => m * MINUTE)
+const ticks = computed(() => {
+  const minor = MINOR_STEPS.find(s => span.value / s <= 60) ?? MINOR_STEPS.at(-1)!
+  const major = MAJOR_STEPS.find(s => s >= minor * 2 && span.value / s <= 8) ?? MAJOR_STEPS.at(-1)!
+  // Aligned to the local clock (10:00, 10:15, ...), not to the range's start.
+  const offset = new Date(props.range.start).getTimezoneOffset() * MINUTE
+  const first = Math.ceil((props.range.start - offset) / minor) * minor + offset
+  const list: { t: number, major: boolean }[] = []
+  for (let t = first; t <= props.range.end; t += minor) list.push({ t, major: (t - offset) % major === 0 })
+  return list
+})
 
 function revision(id: number | null) {
   if (id === null) return 'unlinked'
@@ -23,40 +41,138 @@ function revision(id: number | null) {
   return s ? formatTime(s.timeUpdated) : 'deleted snapshot'
 }
 const describe = (e: SnapshotEventRow) =>
-  `${props.items.get(e.itemId)?.title || e.itemId} · ${EVENT_KINDS[e.kind].label} · ${revision(e.fromSnapshotId)} → ${revision(e.toSnapshotId)}`
+  `${clock(e.at)} · ${props.items.get(e.itemId)?.title || e.itemId} · ${EVENT_KINDS[e.kind].label} · ${revision(e.fromSnapshotId)} → ${revision(e.toSnapshotId)}`
+
+// --- Pointer and keyboard -------------------------------------------------------------------
+
+const ruler = useTemplateRef<HTMLElement>('ruler')
+const hover = ref<number | null>(null)
+let dragging = false
+
+const clamp = (t: number) => Math.min(props.range.end, Math.max(props.range.start, t))
+/** The time under a pointer position, to the minute. */
+function timeAt(clientX: number) {
+  const rect = ruler.value!.getBoundingClientRect()
+  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+  return clamp(Math.round((props.range.start + ratio * span.value) / MINUTE) * MINUTE)
+}
+
+function onDown(e: PointerEvent) {
+  if (e.button !== 0) return
+  dragging = true
+  ruler.value!.setPointerCapture(e.pointerId)
+  ruler.value!.focus()
+  point.value = timeAt(e.clientX)
+}
+function onMove(e: PointerEvent) {
+  const t = timeAt(e.clientX)
+  hover.value = t
+  if (dragging) point.value = t
+}
+function onUp(e: PointerEvent) {
+  dragging = false
+  ruler.value?.releasePointerCapture(e.pointerId)
+}
+
+function onKey(e: KeyboardEvent) {
+  const step = (e.shiftKey ? 10 : 1) * MINUTE
+  const moves: Record<string, () => number> = {
+    ArrowLeft: () => point.value - step,
+    ArrowDown: () => point.value - step,
+    ArrowRight: () => point.value + step,
+    ArrowUp: () => point.value + step,
+    PageDown: () => point.value - 60 * MINUTE,
+    PageUp: () => point.value + 60 * MINUTE,
+    Home: () => props.range.start,
+    End: () => props.range.end
+  }
+  const move = moves[e.key]
+  if (!move) return
+  e.preventDefault()
+  point.value = clamp(move())
+}
 </script>
 
 <template>
-  <div class="space-y-3">
-    <div class="relative h-8 rounded-md bg-elevated">
-      <!-- Changes after the chosen point are greyed out: they won't be applied. -->
+  <div class="space-y-4">
+    <!-- py-3 leaves room for the marker's ends, which reach past the ruler. -->
+    <div class="py-3">
       <div
-        class="absolute inset-y-0 right-0 rounded-e-md bg-default/60"
-        :style="{ left: left(point) }"
-      />
-      <UTooltip
-        v-for="e in events"
-        :key="e.id"
-        :text="describe(e)"
+        ref="ruler"
+        role="slider"
+        tabindex="0"
+        aria-label="Point in time to restore to"
+        :aria-valuemin="range.start"
+        :aria-valuemax="range.end"
+        :aria-valuenow="point"
+        :aria-valuetext="clock(point)"
+        class="relative h-24 cursor-crosshair touch-none rounded-md border border-accented bg-elevated select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        @pointerdown="onDown"
+        @pointermove="onMove"
+        @pointerup="onUp"
+        @pointercancel="onUp"
+        @pointerleave="hover = null"
+        @keydown="onKey"
       >
-        <span
-          class="absolute inset-y-1 w-1.5 -translate-x-1/2 rounded-full"
-          :class="[EVENT_KINDS[e.kind].bar, e.at > point ? 'opacity-40' : '']"
-          :style="{ left: left(e.at) }"
+        <!-- After the chosen point: not applied by a restore. -->
+        <div
+          class="pointer-events-none absolute inset-y-0 right-0 rounded-e-md bg-default/50"
+          :style="{ left: pct(point) }"
         />
-      </UTooltip>
-    </div>
 
-    <USlider
-      v-model="point"
-      :min="range.start"
-      :max="range.end"
-      :step="60_000"
-    />
+        <!-- Ticks on both edges; labels under the long ones. -->
+        <template
+          v-for="tick in ticks"
+          :key="tick.t"
+        >
+          <span
+            class="pointer-events-none absolute top-0 w-px bg-(--ui-text-dimmed)"
+            :class="tick.major ? 'h-5' : 'h-2'"
+            :style="{ left: pct(tick.t) }"
+          />
+          <span
+            class="pointer-events-none absolute bottom-0 w-px bg-(--ui-text-dimmed)"
+            :class="tick.major ? 'h-4' : 'h-1.5'"
+            :style="{ left: pct(tick.t) }"
+          />
+          <span
+            v-if="tick.major"
+            class="pointer-events-none absolute top-6 -translate-x-1/2 text-[11px] text-muted tabular-nums"
+            :style="{ left: pct(tick.t) }"
+          >{{ clock(tick.t) }}</span>
+        </template>
 
-    <div class="flex items-center justify-between text-xs text-muted">
-      <span>{{ clock(range.start) }}</span>
-      <span>{{ clock(range.end) }}</span>
+        <!-- A full-height bar per change. -->
+        <UTooltip
+          v-for="e in events"
+          :key="e.id"
+          :text="describe(e)"
+        >
+          <span
+            class="absolute inset-y-0 w-1 -translate-x-1/2 opacity-80 hover:opacity-100"
+            :class="[EVENT_KINDS[e.kind].bar, e.at > point ? 'opacity-30!' : '']"
+            :style="{ left: pct(e.at) }"
+          />
+        </UTooltip>
+
+        <!-- Where a click would go. -->
+        <div
+          v-if="hover !== null && hover !== point"
+          class="pointer-events-none absolute inset-y-0 w-px -translate-x-1/2 bg-error/40"
+          :style="{ left: pct(hover) }"
+        >
+          <span class="absolute -bottom-6 left-1/2 -translate-x-1/2 rounded bg-inverted px-1 text-[11px] text-inverted tabular-nums">{{ clock(hover) }}</span>
+        </div>
+
+        <!-- The chosen point: a red line reaching past both edges, with round ends. -->
+        <div
+          class="pointer-events-none absolute -inset-y-3 w-0.5 -translate-x-1/2 bg-error"
+          :style="{ left: pct(point) }"
+        >
+          <span class="absolute -top-1.5 left-1/2 size-3 -translate-x-1/2 rounded-full bg-error ring-2 ring-default" />
+          <span class="absolute -bottom-1.5 left-1/2 size-3 -translate-x-1/2 rounded-full bg-error ring-2 ring-default" />
+        </div>
+      </div>
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
