@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parseJsonPath, queryJsonPath } from '~/lib/adapters/jsonPath'
 
 describe('jsonPath', () => {
-  const data = { a: { b: [{ v: '1.0' }, { v: '1.1' }] }, 'with space': 2 }
+  const data = { 'a': { b: [{ v: '1.0' }, { v: '1.1' }] }, 'with space': 2 }
 
   it('parses segments', () => {
     expect(parseJsonPath('$.a.b[0].v')).toEqual(['a', 'b', 0, 'v'])
