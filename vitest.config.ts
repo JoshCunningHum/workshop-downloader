@@ -18,7 +18,7 @@ export default defineConfig({
       '@vue/devtools-core',
       'drizzle-orm',
       'drizzle-orm/sqlite-core',
-      'drizzle-orm/sqlite-proxy',
+      'drizzle-orm/sqlite-proxy'
     ]
   }
 })
