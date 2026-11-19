@@ -25,7 +25,10 @@ folder. If an update breaks your game, you go back to how things were.
 - **Game version fit.** Adapters read the game's version and the versions each item supports (from files
   or workshop tags) and flag items that don't list your version. RimWorld and Stellaris adapters are built
   in. You can write your own, and a generic adapter covers other games.
-- **Workshop browser.** Browse a game's workshop inside the app and queue items from their pages.
+- **Workshop browser.** Browse a game's workshop inside the app. Every item tile gets a "+" that adds it to
+  the queue, collections get "Add all" (and a "+" per item), and an item's own page gets an "Add to queue"
+  button. Items you already have are marked: "✓" when downloaded, "↻" / "Update available" when Steam has a
+  newer revision, and "In queue" once queued. The queue sits in a panel beside the browser.
 - **Import existing mods.** Folders already in a game's mods folder can be moved into the library as
   snapshots and linked back, without downloading them again.
 
@@ -41,7 +44,20 @@ Undoing this morning's updates:
 
 ![Restoring a game's mods to before an update](docs/screenshots/restore.gif)
 
-The screenshots use made-up games and mods (see [Screenshots](#regenerating-the-screenshots)).
+### Workshop browser
+
+Adding items and a whole collection from the workshop, with the queue alongside:
+
+![Adding workshop items and a collection to the queue](docs/screenshots/workshop.gif)
+
+| Browsing: "+" to add, ✓ downloaded, ↻ update | A collection: "Add all" and per-item "+" |
+| --- | --- |
+| ![Workshop tiles with add buttons and indicators](docs/screenshots/workshop.png) | ![A collection page with Add all](docs/screenshots/workshop-collection.png) |
+| **An item with an update on Steam** | |
+| ![An item page offering its update](docs/screenshots/workshop-item.png) | |
+
+The screenshots use made-up games and mods, and the workshop pages in them are plain stand-ins for Steam's,
+showing the app's real add buttons and indicators (see [Regenerating the screenshots](#regenerating-the-screenshots)).
 
 ## Install
 
@@ -89,8 +105,11 @@ unavailable there. With [just](https://github.com/casey/just) installed, `just` 
 ### Regenerating the screenshots
 
 `bun run screenshots` builds the static UI, opens it in headless Chromium (Playwright) with the Tauri
-backend faked, on a demo database of fictional games, and writes `docs/screenshots/`. The GIF needs
-`ffmpeg` on your `PATH`. The demo data lives in `scripts/screenshots/demo-data.ts`.
+backend faked, on a demo database of fictional games, and writes `docs/screenshots/`. The Workshop browser
+(a native webview in the app) is stood in for by an iframe running the app's real `workshop_inject.js` on
+demo pages served at the Steam Community URLs; nothing is requested from Steam. The GIFs need `ffmpeg` on
+your `PATH`. Pass `--skip-build` to reuse `.output/public`. The demo data lives in
+`scripts/screenshots/demo-data.ts` and the workshop pages in `scripts/screenshots/workshop-pages.ts`.
 
 ### Layout
 
