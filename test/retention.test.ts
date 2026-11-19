@@ -21,4 +21,8 @@ describe('snapshotsToPrune', () => {
   it('works without an active snapshot', () => {
     expect(snapshotsToPrune(snaps, 1, null).map(s => s.id)).toEqual([4, 3, 1])
   })
+
+  it('never deletes protected snapshots and does not count them', () => {
+    expect(snapshotsToPrune(snaps, 1, null, new Set([1, 4])).map(s => s.id)).toEqual([3])
+  })
 })

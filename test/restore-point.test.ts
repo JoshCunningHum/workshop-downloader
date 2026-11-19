@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dayKey, eventsByDay, planRestore, stateAt, timelineRange, type HistoryEvent } from '~/utils/restore-point'
+import { byMinute, dayKey, diffStates, eventsByDay, planRestore, stateAt, timelineRange, type HistoryEvent } from '~/utils/restore-point'
 
 let nextId = 1
 const ev = (itemId: string, at: number, fromSnapshotId: number | null, toSnapshotId: number | null): HistoryEvent =>
@@ -65,5 +65,35 @@ describe('eventsByDay and timelineRange', () => {
     expect(timelineRange([ev('a', 4_000_000, null, 1), ev('b', 5_000_000, null, 2)]))
       .toEqual({ start: 400_000, end: 8_600_000 })
     expect(timelineRange([])).toBeNull()
+  })
+})
+
+describe('diffStates', () => {
+  it('goes from the current links to a saved state, unlinking items it does not list', () => {
+    const saved = new Map<string, number | null>([['a', 1], ['b', null]])
+    const current = new Map<string, number | null>([['a', 2], ['b', 3], ['c', 5]])
+    expect(diffStates(saved, current, new Set([1, 2, 3, 5]))).toEqual([
+      { itemId: 'a', from: 2, to: 1, action: 'switch' },
+      { itemId: 'b', from: 3, to: null, action: 'unlink' },
+      { itemId: 'c', from: 5, to: null, action: 'unlink' }
+    ])
+  })
+
+  it('links items the saved state had linked and marks deleted snapshots missing', () => {
+    const saved = new Map<string, number | null>([['a', 1], ['b', 4]])
+    expect(diffStates(saved, new Map(), new Set([1]))).toEqual([
+      { itemId: 'a', from: null, to: 1, action: 'link' },
+      { itemId: 'b', from: null, to: 4, action: 'missing' }
+    ])
+  })
+})
+
+describe('byMinute', () => {
+  it('puts changes in the same minute on one bar, in time order', () => {
+    const groups = byMinute([ev('a', 125_000, null, 1), ev('b', 61_000, null, 2), ev('c', 119_000, null, 3)])
+    expect(groups.map(g => [g.at, g.events.map(e => e.itemId)])).toEqual([
+      [60_000, ['b', 'c']],
+      [120_000, ['a']]
+    ])
   })
 })
