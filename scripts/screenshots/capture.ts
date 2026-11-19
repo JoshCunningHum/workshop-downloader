@@ -153,7 +153,9 @@ async function screenshots(browser: Browser) {
   await shot(page, 'item')
 
   // Downloads: start a few jobs across games, then look while they run.
-  await page.evaluate(() => { (window as unknown as Record<string, unknown>).__demoItemMs = 25_000 })
+  await page.evaluate(() => {
+    (window as unknown as Record<string, unknown>).__demoItemMs = 25_000
+  })
   await go(page, `/apps/${STARFALL}`)
   await page.getByRole('button', { name: /^Update \d/ }).click()
   await go(page, `/apps/${GAMES[1]!.appId}`)
@@ -292,6 +294,7 @@ async function review(browser: Browser) {
   await page.getByPlaceholder(/Name \(optional\)/).fill('After the morning update')
   await shot(page, 'history-save-popover', { dir, keepMouse: true })
   await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.getByRole('button', { name: /^Saved points/ }).click()
   await page.getByText('After the morning update').first().waitFor()
   await page.evaluate(() => document.querySelector('[data-day]')?.scrollIntoView())
   await shot(page, 'history-saved-list', { dir })
