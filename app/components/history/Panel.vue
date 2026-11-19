@@ -13,6 +13,10 @@ const {
 } = history
 onMounted(history.reload)
 
+// The saved points list beside the calendar; remembered between visits. Hidden, the points still
+// show as flags on the calendar and ruler.
+const listOpen = useLocalStorage('history:saved-points-open', false)
+
 const attempt = useAttempt()
 const saveOpen = ref(false)
 const label = ref('')
@@ -39,12 +43,21 @@ async function save() {
     <h2 class="font-semibold">
       History
     </h2>
+    <UButton
+      class="ms-auto"
+      size="sm"
+      color="neutral"
+      :variant="listOpen ? 'soft' : 'ghost'"
+      icon="i-lucide-panel-right"
+      :label="`Saved points (${points.length})`"
+      :aria-pressed="listOpen"
+      @click="listOpen = !listOpen"
+    />
     <UPopover
       v-model:open="saveOpen"
       :content="{ align: 'end' }"
     >
       <UButton
-        class="ms-auto"
         size="sm"
         icon="i-lucide-flag"
         label="Save restore point"
@@ -86,7 +99,10 @@ async function save() {
     </UPopover>
   </div>
 
-  <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+  <div
+    class="grid gap-4"
+    :class="listOpen ? 'xl:grid-cols-[minmax(0,1fr)_20rem]' : ''"
+  >
     <HistoryCalendar
       v-model="day"
       :by-day="byDay"
@@ -95,6 +111,7 @@ async function save() {
       :snapshots="snapshots"
     />
     <HistorySavedPoints
+      v-if="listOpen"
       class="self-start"
       :points="points"
       :busy="page.busy.value"
