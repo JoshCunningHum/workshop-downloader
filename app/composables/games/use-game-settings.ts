@@ -26,10 +26,22 @@ export function useGameSettings({ app, adapter, adapters, accounts, run, onModsF
   const toast = useToast()
 
   type AppForm = AppRow & { name: string, installPath: string, modsPath: string, manualGameVersion: string }
+  const toForm = (value: AppRow): AppForm =>
+    ({ ...value, name: value.name ?? '', installPath: value.installPath ?? '', modsPath: value.modsPath ?? '', manualGameVersion: value.manualGameVersion ?? '' })
   const form = ref<AppForm | null>(null)
   watch(app, (value) => {
-    form.value = { ...value, name: value.name ?? '', installPath: value.installPath ?? '', modsPath: value.modsPath ?? '', manualGameVersion: value.manualGameVersion ?? '' }
+    form.value = toForm(value)
   }, { immediate: true })
+
+  // The fields the form saves, as compared for "unsaved changes".
+  const saved = (f: AppForm) => JSON.stringify([f.name, f.installPath, f.modsPath, f.linkMode, f.adapterId || null, f.accountId || null,
+    f.autoUpdate, f.hidden, Math.max(0, Number(f.retention) || 0), f.manualGameVersion])
+  const dirty = computed(() => !!form.value && saved(form.value) !== saved(toForm(app.value)))
+
+  /** Puts the form back to the saved settings. */
+  function discard() {
+    form.value = toForm(app.value)
+  }
 
   const adapterItems = computed(() => [
     { label: `Automatic (${adapter.value.name ?? '—'})`, value: AUTO_ADAPTER },
@@ -94,5 +106,5 @@ export function useGameSettings({ app, adapter, adapters, accounts, run, onModsF
     if (after && after !== before) onModsFolderChanged()
   }
 
-  return { form, adapterItems, accountItems, modsFolderPath, browse, detectInstall, save }
+  return { form, dirty, adapterItems, accountItems, modsFolderPath, browse, detectInstall, save, discard }
 }
