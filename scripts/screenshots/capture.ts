@@ -2,6 +2,7 @@
 //
 //   bun run screenshots              # builds the static app first (nuxt generate)
 //   bun run screenshots --skip-build # reuses .output/public
+//   bun run screenshots --review     # also checks UI flows into .shots-logs/review/ (not the README)
 //
 // Runs the app in headless Chromium (Playwright) at http://app.local/, served from .output/public
 // through request interception, so it needs no port. Tauri is faked (tauri-mock.ts) on top of a
@@ -103,10 +104,11 @@ async function go(page: Page, path: string) {
 }
 
 const settle = (page: Page, ms = 600) => page.waitForTimeout(ms)
-const shot = async (page: Page, name: string, { keepMouse = false } = {}) => {
+const shot = async (page: Page, name: string, { keepMouse = false, dir = out } = {}) => {
   if (!keepMouse) await page.mouse.move(1, 1)
   await settle(page)
-  await page.screenshot({ path: join(out, `${name}.png`) })
+  mkdirSync(dir, { recursive: true })
+  await page.screenshot({ path: join(dir, `${name}.png`) })
   console.log(`  ${name}.png`)
 }
 const todayKey = () => {
@@ -153,9 +155,9 @@ async function screenshots(browser: Browser) {
   // Downloads: start a few jobs across games, then look while they run.
   await page.evaluate(() => { (window as unknown as Record<string, unknown>).__demoItemMs = 25_000 })
   await go(page, `/apps/${STARFALL}`)
-  await page.getByRole('button', { name: 'Update outdated' }).click()
+  await page.getByRole('button', { name: /^Update \d/ }).click()
   await go(page, `/apps/${GAMES[1]!.appId}`)
-  await page.getByRole('button', { name: 'Update outdated' }).click()
+  await page.getByRole('button', { name: /^Update \d/ }).click()
   await go(page, `/apps/${GAMES[2]!.appId}`)
   await page.locator('table thead [role="checkbox"]').click()
   await page.getByRole('button', { name: /^Download/ }).first().click()
@@ -250,6 +252,40 @@ async function toGif(page: Page, context: Awaited<ReturnType<Browser['newContext
   }
 }
 
+/** UI flows worth eyeballing after UI changes; not used in the README. */
+async function review(browser: Browser) {
+  const dir = join(root, '.shots-logs/review')
+  const { context, page } = await open(browser, 'review')
+  await page.goto(`${ORIGIN}/apps/${STARFALL}`)
+  await page.locator('table tbody tr').first().waitFor()
+  await page.locator('table tbody tr').nth(1).locator('[role="checkbox"]').click()
+  await page.locator('table tbody tr').nth(3).locator('[role="checkbox"]').click()
+  await shot(page, 'game-selected', { dir })
+
+  // Hide Harbor Lights through its settings, then look at the sidebar and the Games page.
+  await go(page, `/apps/${GAMES[2]!.appId}`)
+  await page.getByRole('button', { name: 'Game settings' }).click()
+  await page.getByRole('switch').first().click()
+  await page.locator('#game-version').fill('0.9.2')
+  await shot(page, 'settings-dirty', { dir })
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.getByText('Unsaved changes').waitFor({ state: 'detached' })
+  await shot(page, 'settings-saved-hidden', { dir })
+  await go(page, '/apps')
+  await shot(page, 'games-hidden', { dir })
+  await page.getByRole('switch', { name: /Show hidden/ }).click()
+  await shot(page, 'games-show-hidden', { dir })
+
+  await page.goto(`${ORIGIN}/items/3100010002`)
+  await page.getByText('Snapshots').first().waitFor()
+  await page.getByRole('button', { name: 'More actions' }).click()
+  await shot(page, 'item-menu', { dir, keepMouse: true })
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Snapshot actions' }).nth(1).click()
+  await shot(page, 'item-snapshot-menu', { dir, keepMouse: true })
+  await context.close()
+}
+
 async function restoreVideo(browser: Browser) {
   const { context, page, openedAt } = await open(browser, 'video', { video: true, scale: 1 })
   await page.goto(`${ORIGIN}/apps/${STARFALL}`)
@@ -273,6 +309,10 @@ try {
   console.log('Screenshots:')
   await screenshots(browser)
   await workshopShots(browser)
+  if (process.argv.includes('--review')) {
+    console.log('Review:')
+    await review(browser)
+  }
   console.log('Videos:')
   await restoreVideo(browser)
   await workshopVideo(browser)
