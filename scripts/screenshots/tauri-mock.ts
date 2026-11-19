@@ -3,12 +3,15 @@
 // `createHandler` in Node, which answers SQL from the demo database and other commands with
 // canned values.
 import { DatabaseSync } from 'node:sqlite'
-import { GAMES, itemDetails, toSql } from './demo-data.ts'
+import type { Frame, Page } from 'playwright'
+import { COLLECTION, GAMES, itemDetails, toSql } from './demo-data.ts'
 
 type Args = Record<string, unknown> | undefined
 
 /** Runs in the page before the app loads. Must be self-contained (it is serialized). */
 export function pageInit() {
+  // Init scripts also run in the Workshop iframe; only the app gets the fake backend.
+  if (window.top !== window) return
   const callbacks = new Map<number, (payload: unknown) => void>()
   let nextCallback = 1
   let nextSlot = 0
@@ -43,6 +46,12 @@ export function pageInit() {
     later(300, () => send({ type: 'finished', status: 'done', error: null }))
   }
 
+  // `listen()` registrations, so Node can emit events (`__demoEmit`) the way Rust does.
+  const listeners = new Map<string, Set<number>>()
+  w.__demoEmit = (event: string, payload: unknown) => {
+    for (const id of listeners.get(event) ?? []) callbacks.get(id)?.({ event, id, payload })
+  }
+
   w.isTauri = true
   w.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} }
   w.__TAURI_INTERNALS__ = {
@@ -62,6 +71,16 @@ export function pageInit() {
         return null
       }
       if (cmd === 'job_cancel') return true
+      if (cmd === 'plugin:event|listen') {
+        const event = String(args.event)
+        if (!listeners.has(event)) listeners.set(event, new Set())
+        listeners.get(event)!.add(args.handler as number)
+        return args.handler
+      }
+      if (cmd === 'plugin:event|unlisten') {
+        listeners.get(String(args.event))?.delete(args.eventId as number)
+        return null
+      }
       // Channels can't cross into Node; send their id instead.
       const plain = JSON.parse(JSON.stringify(args ?? {}))
       return (w.__demoInvoke as (cmd: string, args: unknown) => Promise<unknown>)(cmd, plain)
@@ -69,11 +88,91 @@ export function pageInit() {
   }
 }
 
+const WORKSHOP_ORIGIN = 'https://steamcommunity.com'
+
+/** Emits a Tauri event into the app page. */
+export const emit = (page: Page, event: string, payload: unknown) =>
+  page.evaluate(([e, p]) => (window as unknown as { __demoEmit: (e: string, p: unknown) => void }).__demoEmit(e as string, p), [event, payload]).catch(() => {})
+
+/**
+ * The Workshop browser: an iframe over the frame the app reserves for the native webview, with
+ * the same state pushes (queued ids, library, options) after each page load that Rust makes.
+ */
+function workshopBrowser() {
+  const state = { queued: [] as string[], library: { current: [] as string[], outdated: [] as string[] }, options: { openItemLinks: true } }
+  const attached = new WeakSet<Page>()
+  const frameOf = (page: Page) => page.frames().find(f => f.parentFrame() && f.url().startsWith(WORKSHOP_ORIGIN))
+
+  const push = (frame: Frame) => frame.evaluate((s) => {
+    const w = window as unknown as Record<string, ((v: unknown) => void) | undefined>
+    w.__wsdSetOptions?.(s.options)
+    w.__wsdSetLibrary?.(s.library)
+    w.__wsdSetQueued?.(s.queued)
+  }, state).catch(() => {})
+
+  function attach(page: Page) {
+    if (attached.has(page)) return
+    attached.add(page)
+    page.on('framenavigated', (frame) => {
+      if (!frame.parentFrame() || !frame.url().startsWith(WORKSHOP_ORIGIN)) return
+      void frame.waitForLoadState('domcontentloaded').then(() => push(frame)).then(() => emit(page, 'workshop://location', { url: frame.url() }))
+    })
+  }
+
+  const place = (page: Page, bounds: Record<string, unknown>) => page.evaluate((b) => {
+    let frame = document.getElementById('demo-workshop') as HTMLIFrameElement | null
+    if (!frame) {
+      frame = document.createElement('iframe')
+      frame.id = 'demo-workshop'
+      frame.style.cssText = 'position:fixed;border:0;z-index:5;background:#1e2430'
+      document.body.appendChild(frame)
+    }
+    if (b.hide) {
+      frame.style.display = 'none'
+      return
+    }
+    Object.assign(frame.style, { display: 'block', left: `${b.x}px`, top: `${b.y}px`, width: `${b.width}px`, height: `${b.height}px` })
+    if (b.url) frame.src = String(b.url)
+  }, bounds)
+
+  return async (page: Page, cmd: string, a: Record<string, unknown>) => {
+    attach(page)
+    const frame = frameOf(page)
+    switch (cmd) {
+      case 'workshop_show':
+      case 'workshop_set_bounds':
+        return place(page, a)
+      case 'workshop_hide':
+        return place(page, { hide: true })
+      case 'workshop_navigate':
+        return place(page, { ...(await page.evaluate(() => document.getElementById('demo-workshop')?.getBoundingClientRect().toJSON())), url: a.url })
+      case 'workshop_back':
+        return frame?.evaluate(() => history.back())
+      case 'workshop_forward':
+        return frame?.evaluate(() => history.forward())
+      case 'workshop_reload':
+        return frame?.evaluate(() => location.reload())
+      case 'workshop_set_queued':
+        state.queued = a.ids as string[]
+        break
+      case 'workshop_set_library':
+        state.library = a.library as typeof state.library
+        break
+      case 'workshop_set_options':
+        state.options = a.options as typeof state.options
+        break
+    }
+    if (frame) await push(frame)
+    return null
+  }
+}
+
 /** Answers forwarded commands. `unknown` collects commands with no canned answer. */
 export function createHandler(dbPath: string, unknown: Set<string>) {
   const db = new DatabaseSync(dbPath)
+  const workshop = workshopBrowser()
 
-  return (cmd: string, args: Args): unknown => {
+  return (page: Page, cmd: string, args: Args): unknown => {
     const a = args ?? {}
     const values = ((a.values as unknown[] | undefined) ?? []).map(toSql)
     switch (cmd) {
@@ -91,9 +190,6 @@ export function createHandler(dbPath: string, unknown: Set<string>) {
         return (a.paths as string[]).join('\\').replace(/\\{2,}/g, '\\')
       case 'plugin:path|resolve_directory':
         return 'C:\\Users\\demo\\AppData\\Roaming\\com.kenshi.workshopdownloader'
-      case 'plugin:event|listen':
-        return Math.floor(Math.random() * 1e9)
-      case 'plugin:event|unlisten':
       case 'plugin:event|emit':
       case 'plugin:log|log':
         return null
@@ -115,6 +211,12 @@ export function createHandler(dbPath: string, unknown: Set<string>) {
       }
       case 'steam_item_details':
         return itemDetails(db, (a.ids as string[]) ?? [])
+      case 'steam_resolve': {
+        const ids = (a.ids as string[]) ?? []
+        const collections = ids.filter(id => id === COLLECTION.id).map(id => ({ id, children: COLLECTION.children }))
+        const items = ids.flatMap(id => (id === COLLECTION.id ? COLLECTION.children : [id]))
+        return { items: itemDetails(db, [...new Set(items)]), collections }
+      }
       case 'links_verify':
         return ((a.links as { id: number }[]) ?? []).map(l => ({ id: l.id, status: 'ok' }))
       case 'read_files':
@@ -135,7 +237,7 @@ export function createHandler(dbPath: string, unknown: Set<string>) {
       case 'open_in_file_manager':
         return null
       default:
-        if (cmd.startsWith('workshop_')) return null
+        if (cmd.startsWith('workshop_')) return workshop(page, cmd, a)
         unknown.add(cmd)
         return null
     }

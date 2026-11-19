@@ -78,7 +78,36 @@ export const GAMES: DemoGame[] = [
   }
 ]
 
-const itemId = (appId: number, i: number) => String(3_100_000_000 + (appId % 1000) * 100 + i)
+export const itemId = (appId: number, i: number) => String(3_100_000_000 + (appId % 1000) * 100 + i)
+
+/** Starfall Colony items on the demo workshop that aren't downloaded yet. */
+export const WORKSHOP_NEW = [
+  { id: '3100010050', title: 'Terraforming Toolkit', author: 'gaia', size: 64_000_000 },
+  { id: '3100010051', title: 'Medical Bay Rework', author: 'triage', size: 18_000_000 },
+  { id: '3100010052', title: 'Pet Drones', author: 'whirr', size: 27_000_000 },
+  { id: '3100010053', title: 'Night Sky Shaders', author: 'aurora', size: 9_000_000 },
+  { id: '3100010054', title: 'Smarter Storage', author: 'crates', size: 1_800_000 },
+  { id: '3100010055', title: 'Raider Factions', author: 'redflag', size: 41_000_000 }
+]
+
+/** A demo collection mixing downloaded and new items. */
+export const COLLECTION = {
+  id: '3100019000',
+  title: 'Starfall Essentials',
+  author: 'curator',
+  children: ['3100010000', '3100010001', '3100010007', '3100010050', '3100010051', '3100010054']
+}
+
+/** Title, author, size and art hue of any demo workshop item (downloaded or not). */
+export function workshopItem(id: string) {
+  const fresh = WORKSHOP_NEW.find(i => i.id === id)
+  if (fresh) return { ...fresh, hue: 140 + WORKSHOP_NEW.indexOf(fresh) * 37 }
+  for (const g of GAMES) {
+    const i = g.items.findIndex((_, n) => itemId(g.appId, n) === id)
+    if (i >= 0) return { id, ...g.items[i]!, hue: g.hue + i * 23 }
+  }
+  return null
+}
 
 interface Ev { appId: number, itemId: string, kind: string, from: number | null, to: number | null, at: number }
 
@@ -274,7 +303,12 @@ function applyMigrations(db: DatabaseSync, dir: string) {
 /** Item details for the Steam Web API mock (tooltips, item page). */
 export function itemDetails(db: DatabaseSync, ids: string[]) {
   return ids.flatMap((id) => {
-    const row = db.prepare('SELECT * FROM workshop_items WHERE id = ?').get(id) as Record<string, unknown> | undefined
+    let row = db.prepare('SELECT * FROM workshop_items WHERE id = ?').get(id) as Record<string, unknown> | undefined
+    const fresh = WORKSHOP_NEW.find(i => i.id === id)
+    if (!row && fresh) {
+      row = { app_id: GAMES[0]!.appId, title: fresh.title, author: fresh.author, file_size: fresh.size, tags: '["Simulation"]',
+        preview_url: thumbnail(fresh.title, workshopItem(id)!.hue), remote_time_updated: Math.floor(Date.now() / 1000) - 3 * 86_400 }
+    }
     if (!row) return []
     return [{
       id,
