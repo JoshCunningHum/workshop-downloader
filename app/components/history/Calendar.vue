@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { EVENT_KINDS, MAX_DAY_BARS } from '~/constants/history'
-import type { SnapshotEventRow } from '~/lib/db/schema'
+import type { ItemRow, RestorePointRow, SnapshotEventRow, SnapshotRow } from '~/lib/db/schema'
 
-// A month of a game's history: one bar per change in each day cell. Picking a day selects it.
-const props = defineProps<{ byDay: Map<string, SnapshotEventRow[]> }>()
+// A month of a game's history: one bar per change in each day cell, a flag for saved restore
+// points, and the day's changes in a tooltip. Picking a day selects it.
+const props = defineProps<{
+  byDay: Map<string, SnapshotEventRow[]>
+  pointsByDay: Map<string, RestorePointRow[]>
+  items: Map<string, ItemRow>
+  snapshots: Map<number, SnapshotRow>
+}>()
 const day = defineModel<string | null>({ default: null })
 
 // Opens on the month of the latest change (or this month).
@@ -31,7 +37,14 @@ const cells = computed(() => {
   return Array.from({ length: 42 }, (_, i) => {
     const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
     const key = dayKey(date.getTime())
-    return { key, date: date.getDate(), inMonth: date.getMonth() === first.getMonth(), events: props.byDay.get(key) ?? [] }
+    return {
+      key,
+      date: date.getDate(),
+      label: date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }),
+      inMonth: date.getMonth() === first.getMonth(),
+      events: props.byDay.get(key) ?? [],
+      points: props.pointsByDay.get(key) ?? []
+    }
   })
 })
 const today = dayKey(Date.now())
@@ -81,34 +94,56 @@ const today = dayKey(Date.now())
       >
         {{ w }}
       </div>
-      <button
+      <UTooltip
         v-for="c in cells"
         :key="c.key"
-        :data-day="c.key"
-        type="button"
-        class="flex h-16 flex-col gap-1 rounded-md border p-1.5 text-start text-xs transition-colors"
-        :class="[
-          c.key === day ? 'border-primary bg-primary/10' : 'border-default hover:bg-elevated',
-          c.inMonth ? '' : 'opacity-40',
-          c.events.length ? '' : 'text-dimmed'
-        ]"
-        :disabled="!c.events.length"
-        @click="day = c.key"
+        :disabled="!c.events.length && !c.points.length"
+        :delay-duration="250"
+        :ui="{ content: 'h-auto px-3 py-2' }"
       >
-        <span :class="c.key === today ? 'font-semibold text-primary' : ''">{{ c.date }}</span>
-        <span class="flex flex-wrap items-end gap-0.5">
-          <span
-            v-for="e in c.events.slice(0, MAX_DAY_BARS)"
-            :key="e.id"
-            class="h-4 w-1.5 rounded-full"
-            :class="EVENT_KINDS[e.kind].bar"
+        <button
+          :data-day="c.key"
+          type="button"
+          class="flex h-16 w-full flex-col gap-1 rounded-md border p-1.5 text-start text-xs transition-colors"
+          :class="[
+            c.key === day ? 'border-primary bg-primary/10' : 'border-default hover:bg-elevated',
+            c.inMonth ? '' : 'opacity-40',
+            c.events.length || c.points.length ? '' : 'text-dimmed'
+          ]"
+          :disabled="!c.events.length && !c.points.length"
+          @click="day = c.key"
+        >
+          <span class="flex items-center gap-1">
+            <span :class="c.key === today ? 'font-semibold text-primary' : ''">{{ c.date }}</span>
+            <UIcon
+              v-if="c.points.length"
+              name="i-lucide-flag"
+              class="ms-auto size-3.5 text-error"
+            />
+          </span>
+          <span class="flex flex-wrap items-end gap-0.5">
+            <span
+              v-for="e in c.events.slice(0, MAX_DAY_BARS)"
+              :key="e.id"
+              class="h-4 w-1.5 rounded-full"
+              :class="EVENT_KINDS[e.kind].bar"
+            />
+            <span
+              v-if="c.events.length > MAX_DAY_BARS"
+              class="text-muted"
+            >+{{ c.events.length - MAX_DAY_BARS }}</span>
+          </span>
+        </button>
+        <template #content>
+          <HistoryChangeList
+            :title="c.label"
+            :events="c.events"
+            :points="c.points"
+            :items="items"
+            :snapshots="snapshots"
           />
-          <span
-            v-if="c.events.length > MAX_DAY_BARS"
-            class="text-muted"
-          >+{{ c.events.length - MAX_DAY_BARS }}</span>
-        </span>
-      </button>
+        </template>
+      </UTooltip>
     </div>
   </div>
 </template>

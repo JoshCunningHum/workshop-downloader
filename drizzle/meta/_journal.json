@@ -43,6 +43,13 @@
       "when": 1795079365338,
       "tag": "0005_slim_gorilla_man",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1795079822312,
+      "tag": "0006_strong_makkari",
+      "breakpoints": true
     }
   ]
 }

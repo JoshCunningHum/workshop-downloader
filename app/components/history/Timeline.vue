@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { EVENT_KINDS } from '~/constants/history'
-import type { ItemRow, SnapshotEventRow, SnapshotRow } from '~/lib/db/schema'
+import type { ItemRow, RestorePointRow, SnapshotEventRow, SnapshotRow } from '~/lib/db/schema'
 
-// One day's changes on a ruler: time ticks along both edges, a full-height bar per change, and a
-// red marker for the moment to restore to. Click or drag anywhere on the ruler to move it; as a
-// slider it also takes arrow keys (1 min, Shift for 10), Home and End.
+// One day's changes on a ruler: time ticks along both edges, a full-height bar per minute with
+// changes (hover lists them), flags for saved restore points, and a red marker for the moment
+// to restore to. Click or drag anywhere on the ruler to move it; as a slider it also takes arrow
+// keys (1 min, Shift for 10), Home and End.
 const props = defineProps<{
   events: SnapshotEventRow[]
+  points: RestorePointRow[]
   range: { start: number, end: number }
   items: Map<string, ItemRow>
   snapshots: Map<number, SnapshotRow>
@@ -35,13 +37,11 @@ const ticks = computed(() => {
   return list
 })
 
-function revision(id: number | null) {
-  if (id === null) return 'unlinked'
-  const s = props.snapshots.get(id)
-  return s ? formatTime(s.timeUpdated) : 'deleted snapshot'
-}
-const describe = (e: SnapshotEventRow) =>
-  `${clock(e.at)} · ${props.items.get(e.itemId)?.title || e.itemId} · ${EVENT_KINDS[e.kind].label} · ${revision(e.fromSnapshotId)} → ${revision(e.toSnapshotId)}`
+// One bar per minute with changes, split into a segment per kind of change in it.
+const bars = computed(() => byMinute(props.events).map(group => ({
+  ...group,
+  kinds: [...new Set(group.events.map(e => e.kind))]
+})))
 
 // --- Pointer and keyboard -------------------------------------------------------------------
 
@@ -142,16 +142,45 @@ function onKey(e: KeyboardEvent) {
           >{{ clock(tick.t) }}</span>
         </template>
 
-        <!-- A full-height bar per change. -->
+        <!-- A full-height bar per minute with changes; hovering it lists just those. -->
         <UTooltip
-          v-for="e in events"
-          :key="e.id"
-          :text="describe(e)"
+          v-for="bar in bars"
+          :key="bar.at"
+          :delay-duration="100"
+          :ui="{ content: 'h-auto px-3 py-2' }"
         >
           <span
-            class="absolute inset-y-0 w-1 -translate-x-1/2 opacity-80 hover:opacity-100"
-            :class="[EVENT_KINDS[e.kind].bar, e.at > point ? 'opacity-30!' : '']"
-            :style="{ left: pct(e.at) }"
+            class="absolute inset-y-0 flex w-1.5 -translate-x-1/2 flex-col overflow-hidden rounded-sm opacity-80 hover:opacity-100"
+            :class="bar.at > point ? 'opacity-30!' : ''"
+            :style="{ left: pct(bar.at) }"
+          >
+            <span
+              v-for="kind in bar.kinds"
+              :key="kind"
+              class="flex-1"
+              :class="EVENT_KINDS[kind].bar"
+            />
+          </span>
+          <template #content>
+            <HistoryChangeList
+              :title="`${bar.events.length} change(s) at ${clock(bar.at)}`"
+              :events="bar.events"
+              :items="items"
+              :snapshots="snapshots"
+            />
+          </template>
+        </UTooltip>
+
+        <!-- Saved restore points: a flag at the top edge. -->
+        <UTooltip
+          v-for="p in points"
+          :key="`p${p.id}`"
+          :text="`${clock(p.createdAt)} · ${p.label || 'Saved restore point'}`"
+        >
+          <UIcon
+            name="i-lucide-flag"
+            class="absolute top-1 size-4 -translate-x-0.5 text-error"
+            :style="{ left: pct(p.createdAt) }"
           />
         </UTooltip>
 

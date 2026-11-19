@@ -39,13 +39,20 @@ export function stateAt(events: HistoryEvent[], t: number): Map<string, number |
  * Items not there yet at `t` get unlinked; targets no longer on disk are `missing` (skipped).
  */
 export function planRestore(input: { events: HistoryEvent[], t: number, current: Map<string, number | null>, existing: Set<number> }): RestoreChange[] {
-  const target = stateAt(input.events, input.t)
+  return diffStates(stateAt(input.events, input.t), input.current, input.existing)
+}
+
+/**
+ * What it takes to go from the `current` links to a `target` state (item -> snapshot, or null for
+ * unlinked), such as a saved restore point. Items the target doesn't list get unlinked.
+ */
+export function diffStates(target: Map<string, number | null>, current: Map<string, number | null>, existing: Set<number>): RestoreChange[] {
   const changes: RestoreChange[] = []
-  for (const itemId of new Set([...input.current.keys(), ...target.keys()])) {
-    const from = input.current.get(itemId) ?? null
+  for (const itemId of new Set([...current.keys(), ...target.keys()])) {
+    const from = current.get(itemId) ?? null
     const to = target.get(itemId) ?? null
     if (from === to) continue
-    const action: RestoreAction = to !== null && !input.existing.has(to)
+    const action: RestoreAction = to !== null && !existing.has(to)
       ? 'missing'
       : to === null ? 'unlink' : from === null ? 'link' : 'switch'
     changes.push({ itemId, from, to, action })
@@ -70,9 +77,21 @@ export function eventsByDay<T extends HistoryEvent>(events: T[]): Map<string, T[
   return days
 }
 
-/** Span of a day's timeline: its first change minus an hour to its last change plus an hour. */
-export function timelineRange(dayEvents: HistoryEvent[]): { start: number, end: number } | null {
+/** Span of a day's timeline: its first change (or saved point) minus an hour to its last plus an hour. */
+export function timelineRange(dayEvents: { at: number }[]): { start: number, end: number } | null {
   if (!dayEvents.length) return null
   const times = dayEvents.map(e => e.at)
   return { start: Math.min(...times) - HOUR_MS, end: Math.max(...times) + HOUR_MS }
+}
+
+/** Changes grouped by the minute they happened in, oldest first (one ruler bar per group). */
+export function byMinute<T extends HistoryEvent>(events: T[]): { at: number, events: T[] }[] {
+  const groups: { at: number, events: T[] }[] = []
+  for (const e of [...events].sort(byTime)) {
+    const minute = Math.floor(e.at / 60_000) * 60_000
+    const last = groups.at(-1)
+    if (last && last.at === minute) last.events.push(e)
+    else groups.push({ at: minute, events: [e] })
+  }
+  return groups
 }

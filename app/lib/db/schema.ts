@@ -101,6 +101,16 @@ export const snapshotEvents = sqliteTable('snapshot_events', {
   at: integer('at').notNull()
 }, t => [index('snapshot_events_app_at').on(t.appId, t.at)])
 
+// A game's links recorded on purpose ("Save restore point"): the snapshot each item had linked
+// (null: not linked). Snapshots in here are kept by cleanup until the point is deleted.
+export const restorePoints = sqliteTable('restore_points', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  appId: integer('app_id').notNull(),
+  label: text('label'),
+  state: text('state', { mode: 'json' }).$type<Record<string, number | null>>().notNull(),
+  createdAt: integer('created_at').notNull()
+}, t => [index('restore_points_app').on(t.appId)])
+
 export type JobStatus = 'queued' | 'running' | 'done' | 'partial' | 'failed' | 'cancelled' | 'needs_guard' | 'interrupted'
 
 export const jobs = sqliteTable('jobs', {
@@ -141,6 +151,7 @@ export type ItemRow = typeof workshopItems.$inferSelect
 export type SnapshotRow = typeof snapshots.$inferSelect
 export type LinkRow = typeof links.$inferSelect
 export type SnapshotEventRow = typeof snapshotEvents.$inferSelect
+export type RestorePointRow = typeof restorePoints.$inferSelect
 export type JobRow = typeof jobs.$inferSelect
 export type AccountRow = typeof steamAccounts.$inferSelect
 export type SteamAppRow = typeof steamApps.$inferSelect

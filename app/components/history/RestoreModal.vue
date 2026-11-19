@@ -5,7 +5,7 @@ import type { RestoreChange } from '~/utils/restore-point'
 
 // Confirms a restore: what changes per item, and whether to hold the changed items.
 const props = defineProps<{
-  point: number
+  title: string
   plan: RestoreChange[]
   items: Map<string, ItemRow>
   snapshots: Map<number, SnapshotRow>
@@ -29,7 +29,7 @@ function revision(id: number | null) {
 <template>
   <UModal
     v-model:open="open"
-    :title="`Restore to ${formatMs(point)}`"
+    :title="title"
     description="Links in the mods folder are switched back. No files are deleted."
     :ui="{ content: 'max-w-2xl' }"
   >

@@ -3,6 +3,7 @@ import { expandTemplate } from '~/lib/adapters/engine'
 import type { AppRow, ItemRow, SnapshotEventKind, SnapshotRow } from '~/lib/db/schema'
 import * as items from '~/lib/services/items'
 import * as links from '~/lib/services/links'
+import * as restorePoints from '~/lib/services/restore-points'
 import * as snapshotEvents from '~/lib/services/snapshot-events'
 import * as snapshots from '~/lib/services/snapshots'
 import type { AdapterDefinition } from '~/types/adapters'
@@ -93,7 +94,9 @@ export function useLibrary() {
     const item = await items.get(itemId)
     if (!item) return []
     const app = await catalog.getApp(item.appId)
-    const doomed = snapshotsToPrune(await snapshots.listForItem(itemId), app?.retention ?? 3, item.activeSnapshotId)
+    // Snapshots a saved restore point links are kept until that point is deleted.
+    const kept = await restorePoints.protectedSnapshotIds(item.appId)
+    const doomed = snapshotsToPrune(await snapshots.listForItem(itemId), app?.retention ?? 3, item.activeSnapshotId, kept)
     for (const s of doomed) await deleteSnapshot(s.id)
     return doomed
   }
