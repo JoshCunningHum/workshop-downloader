@@ -21,6 +21,8 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  ignore: ['**/src-tauri/**', '**/crates/**'],
+
   devServer: {
     host: process.env.TAURI_DEV_HOST
   },
@@ -32,10 +34,23 @@ export default defineNuxtConfig({
     envPrefix: ['VITE_', 'TAURI_'],
     server: {
       strictPort: true
+    },
+    optimizeDeps: {
+      include: [
+        '@tauri-apps/api/core',
+        '@tauri-apps/api/event',
+        '@tauri-apps/api/path',
+        '@tauri-apps/plugin-clipboard-manager',
+        '@tauri-apps/plugin-dialog',
+        '@tauri-apps/plugin-opener',
+        '@tauri-apps/plugin-sql',
+        '@vue/devtools-core',
+        'drizzle-orm',
+        'drizzle-orm/sqlite-core',
+        'drizzle-orm/sqlite-proxy'
+      ]
     }
   },
-
-  ignore: ['**/src-tauri/**', '**/crates/**'],
 
   eslint: {
     config: {
