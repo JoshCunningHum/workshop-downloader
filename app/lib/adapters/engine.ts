@@ -106,8 +106,9 @@ function fitsVersion(gameVersion: string, itemVersion: string): boolean {
   if (!game || !item) return false
   if (item === '*') return true
   if (item.includes('*')) {
-    const base = item.replace(/\*+$/, '').replace(/\.$/, '')
-    return !!base && (game === base || game.startsWith(`${base}.`))
+    // "4.5.*" fits any 4.5; an all-wildcard version ("*", "*.*.*") fits everything.
+    const base = item.replace(/\*+/g, '').replace(/\.+$/, '')
+    return !base || game === base || game.startsWith(`${base}.`)
   }
   const prefix = (a: string, b: string) => a === b || a.startsWith(`${b}.`)
   return prefix(game, item) || prefix(item, game)

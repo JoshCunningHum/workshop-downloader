@@ -147,6 +147,18 @@ describe('helpers', () => {
     expect(isCompatible('4.5', ['*'])).toBe(true)
   })
 
+  it('treats all-wildcard patterns like "*.*.*" as compatible with every game version', () => {
+    expect(isCompatible('1.5.4104', ['*.*.*'])).toBe(true)
+    expect(isCompatible('4.5', ['*.*.*'])).toBe(true)
+    expect(isCompatible('1.5.4104', ['v*.*.*'])).toBe(true)
+  })
+
+  it('matches wildcards at any depth ("4.*" fits "4.5.1")', () => {
+    expect(isCompatible('4.5.1', ['4.*'])).toBe(true)
+    expect(isCompatible('4.5.1', ['4.5.*.*'])).toBe(true)
+    expect(isCompatible('5.0', ['4.*'])).toBe(false)
+  })
+
   it('expands templates and refuses missing values', () => {
     expect(expandTemplate('{install}/Mods', { install: 'C:/Games/RimWorld' })).toBe('C:/Games/RimWorld/Mods')
     expect(expandTemplate('{install}/Mods', { install: null })).toBeNull()
