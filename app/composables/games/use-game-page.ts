@@ -9,7 +9,11 @@ export function useGamePage(appId: number) {
   const updates = useUpdateChecker()
   const toast = useToast()
 
-  const { data, refresh } = useAsyncData(`app-${appId}`, async () => {
+  // Revisits render the cached data at once, then refresh it in the background. The default
+  // cache only applies while hydrating; this app is a client-only SPA, so keep the data in
+  // memory across visits instead of refetching (and flashing) on every navigation.
+  let fromCache = false
+  const { data, refresh, status } = useAsyncData(`app-${appId}`, async () => {
     const app = await catalog.getApp(appId)
     if (!app) return null
     const items = await catalog.listItems(appId)
@@ -22,6 +26,14 @@ export function useGamePage(appId: number) {
       adapters: await adapters.list(),
       accounts: await accounts.list()
     }
+  }, {
+    getCachedData: (key, nuxtApp) => {
+      fromCache = nuxtApp.payload.data[key] !== undefined
+      return nuxtApp.payload.data[key]
+    }
+  })
+  onMounted(() => {
+    if (fromCache) refresh()
   })
 
   const app = computed(() => data.value?.app ?? null)
@@ -77,7 +89,7 @@ export function useGamePage(appId: number) {
     toast.add({ title: `Adapter: ${best.adapter.name}`, description: `Found supported versions for ${best.matched} of ${best.total} item(s); item versions re-detected.`, color: 'success' })
   })
 
-  return { data, refresh, app, gameVersion, busy, run, checkUpdates, verifyLinks, detectGameVersion, detectAdapter }
+  return { data, refresh, status, app, gameVersion, busy, run, checkUpdates, verifyLinks, detectGameVersion, detectAdapter }
 }
 
 export type GamePage = ReturnType<typeof useGamePage>

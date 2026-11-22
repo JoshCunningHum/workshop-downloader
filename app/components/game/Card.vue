@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { AppRow } from '~/lib/db/schema'
 import { ROUTES } from '~/constants/routes'
+import type { DiskUsage } from '~/types/games'
 
-// A game in the Games list: store banner on the left, name and badges on the right.
-// Opens the game's page unless `to` says otherwise (the Workshop list opens its workshop).
-defineProps<{ app: AppRow & { items: number }, outdated: number, to?: string }>()
+// A game in the Games list: store banner on the left, name and badges in the middle, disk
+// usage on the right. Opens the game's page unless `to` says otherwise (the Workshop list
+// opens its workshop).
+defineProps<{ app: AppRow & { items: number, disk: DiskUsage }, outdated: number, to?: string }>()
 </script>
 
 <template>
@@ -29,47 +31,56 @@ defineProps<{ app: AppRow & { items: number }, outdated: number, to?: string }>(
       />
     </div>
 
-    <div class="min-w-0 flex-1 space-y-1 p-3">
-      <p class="truncate font-medium text-highlighted">
-        {{ app.name ?? `App ${app.appId}` }}
-      </p>
-      <p class="text-xs text-muted">
-        AppID {{ app.appId }} · {{ app.items }} item(s)
-      </p>
-      <div class="flex flex-wrap gap-1">
-        <UBadge
-          v-if="outdated"
-          size="sm"
-          color="warning"
-          variant="subtle"
-        >
-          {{ outdated }} update(s)
-        </UBadge>
-        <UBadge
-          v-if="app.manualGameVersion || app.detectedGameVersion"
-          size="sm"
-          color="neutral"
-          variant="subtle"
-        >
-          game {{ app.manualGameVersion || app.detectedGameVersion }}
-        </UBadge>
-        <UBadge
-          v-if="app.hidden"
-          size="sm"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-eye-off"
-        >
-          hidden
-        </UBadge>
-        <UBadge
-          v-if="!app.installPath"
-          size="sm"
-          color="neutral"
-          variant="outline"
-        >
-          install folder unknown
-        </UBadge>
+    <div class="flex min-w-0 flex-1">
+      <div class="min-w-0 flex-1 space-y-1 p-3">
+        <p class="truncate font-medium text-highlighted">
+          {{ app.name ?? `App ${app.appId}` }}
+        </p>
+        <p class="text-xs text-muted">
+          AppID {{ app.appId }} · {{ app.items }} item(s)
+        </p>
+        <div class="flex flex-wrap gap-1">
+          <UBadge
+            v-if="outdated"
+            size="sm"
+            color="warning"
+            variant="subtle"
+          >
+            {{ outdated }} update(s)
+          </UBadge>
+          <UBadge
+            v-if="app.manualGameVersion || app.detectedGameVersion"
+            size="sm"
+            color="neutral"
+            variant="subtle"
+          >
+            game {{ app.manualGameVersion || app.detectedGameVersion }}
+          </UBadge>
+          <UBadge
+            v-if="app.hidden"
+            size="sm"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-eye-off"
+          >
+            hidden
+          </UBadge>
+          <UBadge
+            v-if="!app.installPath"
+            size="sm"
+            color="neutral"
+            variant="outline"
+          >
+            install folder unknown
+          </UBadge>
+        </div>
+      </div>
+      <!-- Stats sit in their own column on the card's right edge, off the badge flow. -->
+      <div
+        v-if="app.disk.total"
+        class="flex shrink-0 items-center border-l border-default p-3"
+      >
+        <GameDiskUsage v-bind="app.disk" />
       </div>
     </div>
   </NuxtLink>

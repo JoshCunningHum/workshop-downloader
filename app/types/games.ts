@@ -10,3 +10,10 @@ export interface GameItemRow {
   updateAvailable: boolean
   compatible: boolean | null
 }
+
+/** A game's snapshots on disk: the active ones, the inactive ones, and their total. */
+export interface DiskUsage {
+  active: number
+  inactive: number
+  total: number
+}

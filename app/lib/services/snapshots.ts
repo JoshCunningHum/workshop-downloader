@@ -1,7 +1,7 @@
-import { desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, sum } from 'drizzle-orm'
 import { command } from '~/lib/api/tauri'
 import { db } from '~/lib/db/instance'
-import { snapshots, type SnapshotRow } from '~/lib/db/schema'
+import { snapshots, workshopItems, type SnapshotRow } from '~/lib/db/schema'
 
 // Downloaded revisions of items: rows plus their folders in the library.
 
@@ -52,6 +52,20 @@ export async function setPinned(id: number, pinned: boolean) {
 
 export async function setItemVersions(id: number, itemVersions: string[]) {
   await db().update(snapshots).set({ itemVersions }).where(eq(snapshots.id, id))
+}
+
+/** Snapshot bytes on disk per app, and how much of that is the active revisions. */
+export async function usageByApp(): Promise<Record<number, { active: number, total: number }>> {
+  const [totals, actives] = await Promise.all([
+    db().select({ appId: workshopItems.appId, bytes: sum(snapshots.sizeBytes) })
+      .from(snapshots).innerJoin(workshopItems, eq(snapshots.itemId, workshopItems.id))
+      .groupBy(workshopItems.appId),
+    db().select({ appId: workshopItems.appId, bytes: sum(snapshots.sizeBytes) })
+      .from(snapshots).innerJoin(workshopItems, and(eq(snapshots.itemId, workshopItems.id), eq(snapshots.id, workshopItems.activeSnapshotId)))
+      .groupBy(workshopItems.appId)
+  ])
+  const active = new Map(actives.map(r => [r.appId, Number(r.bytes) || 0]))
+  return Object.fromEntries(totals.map(r => [r.appId, { active: active.get(r.appId) ?? 0, total: Number(r.bytes) || 0 }]))
 }
 
 export async function removeRow(id: number) {

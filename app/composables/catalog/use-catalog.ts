@@ -62,6 +62,7 @@ export function useCatalog() {
     getApp: apps.get,
     updateApp: apps.update,
     itemCountsByApp: apps.itemCounts,
+    diskUsageByApp: snapshots.usageByApp,
     ensureApp,
     importInstalledGames,
     storeStale,

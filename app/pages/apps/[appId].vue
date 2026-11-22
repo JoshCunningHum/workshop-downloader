@@ -4,12 +4,15 @@ const route = useRoute()
 const appId = Number(route.params.appId)
 
 const page = useGamePage(appId)
-const { data, refresh, app, gameVersion, busy, run, checkUpdates, verifyLinks, detectGameVersion, detectAdapter } = page
+const { data, refresh, status, app, gameVersion, busy, run, checkUpdates, verifyLinks, detectGameVersion, detectAdapter } = page
 const items = useGameItems(appId, page)
 const { visibleRows, search, sorting, outdatedIds, selected, allSelected, selectedRows } = items
 
 // The item list, the game's settings (gear button) or its history (history button).
 const view = ref<'items' | 'settings' | 'history'>('items')
+
+// Snapshots on disk in the library: the active ones, the inactive ones, and their total.
+const disk = computed(() => diskUsage(data.value?.items ?? [], data.value?.snapshots ?? []))
 </script>
 
 <template>
@@ -17,14 +20,38 @@ const view = ref<'items' | 'settings' | 'history'>('items')
     <template #body>
       <WorkshopLinkSection />
 
+      <!-- First visit only: later ones show the cached data, even while it refreshes. -->
+      <div
+        v-if="status === 'pending' && !data"
+        class="space-y-3"
+      >
+        <USkeleton class="h-20 w-full max-w-3xl" />
+        <USkeleton class="h-9 w-full max-w-2xl" />
+        <USkeleton class="h-72 w-full" />
+      </div>
+
       <UEmpty
-        v-if="!app || !data"
+        v-else-if="!app || !data"
         title="Unknown game"
         description="This AppID has no items yet."
       />
 
       <template v-else>
-        <GameStoreHeader :app="app" />
+        <div class="flex items-start justify-between gap-4">
+          <GameStoreHeader
+            :app="app"
+            class="min-w-0 flex-1"
+          />
+          <div
+            v-if="disk"
+            class="shrink-0 space-y-1 rounded-lg border border-default p-3"
+          >
+            <p class="text-xs font-semibold text-highlighted">
+              On disk
+            </p>
+            <GameDiskUsage v-bind="disk" />
+          </div>
+        </div>
 
         <GameInfoBar
           v-model:search="search"
