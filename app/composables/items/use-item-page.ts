@@ -5,7 +5,9 @@ export function useItemPage(id: string) {
   const jobsStore = useJobs()
   const toast = useToast()
 
-  const { data, refresh } = useAsyncData(`item-${id}`, async () => {
+  // Revisits render the cached data at once, then refresh it in the background.
+  let fromCache = false
+  const { data, refresh, status } = useAsyncData(`item-${id}`, async () => {
     const item = await catalog.getItem(id)
     if (!item) return null
     return {
@@ -14,6 +16,14 @@ export function useItemPage(id: string) {
       snapshots: await library.listSnapshots(id),
       link: await library.linkFor(id)
     }
+  }, {
+    getCachedData: (key, nuxtApp) => {
+      fromCache = nuxtApp.payload.data[key] !== undefined
+      return nuxtApp.payload.data[key]
+    }
+  })
+  onMounted(() => {
+    if (fromCache) refresh()
   })
 
   const gameVersion = computed(() => data.value?.app?.manualGameVersion || data.value?.app?.detectedGameVersion || null)
@@ -47,5 +57,5 @@ export function useItemPage(id: string) {
   const setAutoUpdate = (on: boolean) => run('Saving', () => catalog.updateItem(id, { autoUpdate: on }))
   const releaseHold = () => run('Release hold', () => catalog.updateItem(id, { held: false }))
 
-  return { data, gameVersion, downloading, busy, makeActive, togglePin, remove, unlink, redetect, download, setAutoUpdate, releaseHold }
+  return { data, refresh, status, gameVersion, downloading, busy, makeActive, togglePin, remove, unlink, redetect, download, setAutoUpdate, releaseHold }
 }

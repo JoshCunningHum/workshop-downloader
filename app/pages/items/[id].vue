@@ -6,7 +6,7 @@ import { itemPage } from '~/lib/services/workshop-browser'
 const route = useRoute()
 const router = useRouter()
 const id = String(route.params.id)
-const { data, gameVersion, downloading, busy, makeActive, togglePin, remove, unlink, redetect, download, setAutoUpdate, releaseHold } = useItemPage(id)
+const { data, status, gameVersion, downloading, busy, makeActive, togglePin, remove, unlink, redetect, download, setAutoUpdate, releaseHold } = useItemPage(id)
 
 // Back to the game with its search and sort intact (they live in its URL); a direct visit
 // to this item has no such page to return to.
@@ -27,8 +27,19 @@ const updateAvailable = computed(() => {
 <template>
   <UDashboardPanel>
     <template #body>
+      <!-- First visit only: later ones show the cached data, even while it refreshes. -->
+      <div
+        v-if="status === 'pending' && !data"
+        class="space-y-3"
+      >
+        <USkeleton class="h-9 w-40" />
+        <USkeleton class="h-36 w-full max-w-3xl" />
+        <USkeleton class="h-16 w-full max-w-3xl" />
+        <USkeleton class="h-40 w-full max-w-3xl" />
+      </div>
+
       <UEmpty
-        v-if="!data"
+        v-else-if="!data"
         title="Item not found"
         :actions="[{ label: 'All games', to: ROUTES.games }]"
       />

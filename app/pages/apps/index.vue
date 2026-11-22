@@ -3,7 +3,7 @@ import { ROUTES } from '~/constants/routes'
 
 const updates = useUpdateChecker()
 const toast = useToast()
-const { apps, refresh } = useGameList()
+const { apps, refresh, status } = useGameList()
 
 // Hidden games (left out of the sidebar) are listed only when asked for.
 const showHidden = ref(false)
@@ -48,8 +48,20 @@ async function checkAll() {
         />
       </div>
 
+      <!-- First visit only: later ones show the cached list, even while it refreshes. -->
+      <div
+        v-if="status === 'pending' && !apps"
+        class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+      >
+        <USkeleton
+          v-for="n in 6"
+          :key="n"
+          class="h-28"
+        />
+      </div>
+
       <UEmpty
-        v-if="!apps?.length"
+        v-else-if="!apps?.length"
         icon="i-lucide-gamepad-2"
         title="No games yet"
         description="Games appear here once you add workshop items for them, or pick one in the sidebar."
