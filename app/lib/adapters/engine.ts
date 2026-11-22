@@ -92,12 +92,25 @@ function dedupe(values: string[]): string[] {
 /**
  * Whether an item that supports `itemVersions` fits game version `gameVersion`.
  * Versions match when equal or when one is a dotted prefix of the other ("1.5" fits "1.5.4104").
+ * A trailing wildcard matches its prefix ("4.5.*" fits "4.5.1"), and "*" fits everything.
  * Returns null when either side is unknown.
  */
 export function isCompatible(gameVersion: string | null | undefined, itemVersions: string[]): boolean | null {
   if (!gameVersion || !itemVersions.length) return null
-  const fits = (a: string, b: string) => a === b || a.startsWith(`${b}.`) || b.startsWith(`${a}.`)
-  return itemVersions.some(v => fits(gameVersion, v))
+  return itemVersions.some(v => fitsVersion(gameVersion, v))
+}
+
+function fitsVersion(gameVersion: string, itemVersion: string): boolean {
+  const game = gameVersion.trim().replace(/^v/i, '')
+  const item = itemVersion.trim().replace(/^v/i, '')
+  if (!game || !item) return false
+  if (item === '*') return true
+  if (item.includes('*')) {
+    const base = item.replace(/\*+$/, '').replace(/\.$/, '')
+    return !!base && (game === base || game.startsWith(`${base}.`))
+  }
+  const prefix = (a: string, b: string) => a === b || a.startsWith(`${b}.`)
+  return prefix(game, item) || prefix(item, game)
 }
 
 /** Expands {install}, {appId}, {itemId}, {title} in adapter templates. */
