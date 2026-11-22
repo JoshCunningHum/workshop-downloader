@@ -2,7 +2,6 @@
 import type { TableColumn, TableRow } from '@nuxt/ui'
 import type { GameItemRow } from '~/types/games'
 import { ROUTES } from '~/constants/routes'
-
 // The workshop items of a game: versions, active snapshot, link status and per-row actions.
 const props = defineProps<{ rows: GameItemRow[], selected: Set<string>, allSelected: boolean }>()
 const sorting = defineModel<{ id: string, desc: boolean }[]>('sorting', { default: () => [] })
@@ -49,11 +48,41 @@ const columns: TableColumn<GameItemRow>[] = [
   { id: 'link', accessorFn: r => r.link?.status ?? '' },
   { id: 'actions', enableSorting: false }
 ]
+
+// Only the visible rows mount (each carries a tooltip and a thumbnail). The page's scrollable
+// panel stays the scroll container; the virtualizer rides on it.
+const table = useTemplateRef<{ $el: HTMLElement | null }>('table')
+function scrollElement(): HTMLElement | null {
+  // The first overflow-scrolling ancestor is the panel body — even before any row has
+  // rendered and made it actually overflow.
+  let el = table.value?.$el ?? null
+  while (el) {
+    const { overflowY } = getComputedStyle(el)
+    if (overflowY === 'auto' || overflowY === 'scroll') return el
+    el = el.parentElement
+  }
+  return null
+}
+// Reactive so the table re-reads `scrollMargin` after mount, once the DOM exists.
+const virtualize = reactive({
+  getScrollElement: scrollElement,
+  // Distance from the panel's top to the table's, so rows map correctly while scrolled.
+  get scrollMargin() {
+    const el = table.value?.$el
+    const scroller = scrollElement()
+    if (!el || !scroller) return 0
+    return el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
+  },
+  estimateSize: 52,
+  overscan: 8
+})
 </script>
 
 <template>
   <UTable
+    ref="table"
     v-model:sorting="sorting"
+    :virtualize="virtualize"
     :data="rows"
     :columns="columns"
     :meta="meta"
