@@ -1,6 +1,7 @@
 // Injected into the Workshop browser (see workshop_browser.rs). Replaces Steam's Subscribe
 // buttons with "Add to queue"; a click navigates to https://wsd.invalid/add?ids=..., which the
-// app cancels and turns into a queue request. Links leaving Steam go to the system browser.
+// app cancels and turns into a queue request. Links leaving Steam go to the system browser;
+// plain links between Steam pages load through the app (https://wsd.invalid/nav?url=...).
 (function () {
   if (window.__wsdInjected) return
   window.__wsdInjected = true
@@ -245,13 +246,22 @@
 
   // --- External links -----------------------------------------------------------------------
 
-  /** Links off Steam (directly or through Steam's link filter) open in the system browser. */
+  /**
+   * Links off Steam (directly or through Steam's link filter) open in the system browser.
+   * Plain left clicks on Steam's own pages are loaded through the app (`nav`): webviews
+   * don't deliver page-initiated navigation on every platform, but the app's own load
+   * (the one "open in new tab" uses) always switches the view. Modified and middle clicks
+   * keep their browser behaviour; same-page anchors keep theirs.
+   */
   document.addEventListener('click', (e) => {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return
     const a = e.target instanceof Element && e.target.closest('a[href]')
     if (!a) return
+    const raw = a.getAttribute('href') || ''
+    if (raw.startsWith('#')) return
     let url
     try {
-      url = new URL(a.getAttribute('href'), location.href)
+      url = new URL(raw, location.href)
     } catch {
       return
     }
@@ -259,13 +269,19 @@
     let target = null
     if (/\/linkfilter\/?$/.test(url.pathname)) target = url.searchParams.get('u') || url.searchParams.get('url')
     else if (!STEAM_HOST.test(url.hostname)) target = url.href
-    if (!target) return
+    if (target) {
+      e.preventDefault()
+      e.stopPropagation()
+      // A workshop item stays in the browser (when that option is on); anything else leaves.
+      const item = openItemLinks && itemPageUrl(target)
+      if (item) send('nav', { url: item })
+      else send('open', { url: target })
+      return
+    }
+    // Loading the same page again is what Steam's own links do anyway; skip only the no-op.
+    if (url.href === location.href) return
     e.preventDefault()
-    e.stopPropagation()
-    // A workshop item stays in the browser (when that option is on); anything else leaves.
-    const item = openItemLinks && itemPageUrl(target)
-    if (item) location.href = item
-    else send('open', { url: target })
+    send('nav', { url: url.href })
   }, true)
 
   // --- Wiring -------------------------------------------------------------------------------

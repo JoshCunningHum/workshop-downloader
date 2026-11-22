@@ -1,9 +1,11 @@
 //! The Workshop browser: a Steam Community page in a child webview over the Workshop tab's
 //! content panel. The frontend keeps it sized to the panel and hides it when leaving the tab.
 //!
-//! An injected script (`workshop_inject.js`) swaps Steam's Subscribe buttons for "Add to queue".
-//! A click navigates to a sentinel URL on `wsd.invalid`; the navigation is cancelled here and
-//! turned into an event for the main webview. The Steam page itself gets no IPC access.
+//! An injected script (`workshop_inject.js`) swaps Steam's Subscribe buttons for "Add to queue"
+//! and routes link clicks. Each navigates to a sentinel URL on `wsd.invalid`; the navigation is
+//! cancelled here and turned into an event (queue, external) or a load in the browser itself
+//! (plain Steam links, whose page-initiated navigation does not reach every platform's webview).
+//! The Steam page itself gets no IPC access.
 
 use crate::error::{Error, Result};
 use serde::{Deserialize, Serialize};
@@ -65,10 +67,13 @@ enum Request {
     Add(Vec<String>),
     /// Open an http(s) URL in the system browser.
     Open(String),
+    /// Load this http(s) URL in the browser itself (a plain link click, routed through the
+    /// app because page-initiated navigation does not reach every platform's webview).
+    Nav(String),
 }
 
-/// Parses `https://wsd.invalid/add?ids=1,2` and `https://wsd.invalid/open?url=...`.
-/// Other URLs, and malformed sentinels, give `None`.
+/// Parses `https://wsd.invalid/add?ids=1,2`, `https://wsd.invalid/open?url=...` and
+/// `https://wsd.invalid/nav?url=...`. Other URLs, and malformed sentinels, give `None`.
 fn parse_sentinel(url: &Url) -> Option<Request> {
     if url.host_str() != Some(SENTINEL_HOST) {
         return None;
@@ -82,6 +87,10 @@ fn parse_sentinel(url: &Url) -> Option<Request> {
                 .map(str::to_owned)
                 .collect();
             (!ids.is_empty()).then_some(Request::Add(ids))
+        }
+        "/nav" => {
+            let target = Url::parse(&param("url")?).ok()?;
+            matches!(target.scheme(), "http" | "https").then(|| Request::Nav(target.into()))
         }
         "/open" => {
             let target = Url::parse(&param("url")?).ok()?;
@@ -186,6 +195,12 @@ fn create<R: Runtime>(app: &AppHandle<R>, url: Url, rect: Rect) -> Result<Webvie
         .on_navigation(move |url| match parse_sentinel(url) {
             Some(Request::Add(ids)) => {
                 let _ = nav_app.emit_to(MAIN, "workshop://add", AddPayload { ids });
+                false
+            }
+            Some(Request::Nav(target)) => {
+                if let Some(webview) = nav_app.get_webview(LABEL) {
+                    let _ = webview.navigate(Url::parse(&target).expect("parse_sentinel checked this"));
+                }
                 false
             }
             Some(Request::Open(target)) => {
@@ -391,6 +406,16 @@ mod tests {
             Some(Request::Open("https://example.com/a".into()))
         );
         assert_eq!(parse("https://wsd.invalid/open?url=file%3A%2F%2F%2Fetc%2Fpasswd"), None);
+    }
+
+    #[test]
+    fn reads_nav_requests() {
+        assert_eq!(
+            parse("https://wsd.invalid/nav?url=https%3A%2F%2Fsteamcommunity.com%2Fsharedfiles%2Ffiledetails%2F%3Fid%3D42"),
+            Some(Request::Nav("https://steamcommunity.com/sharedfiles/filedetails/?id=42".into()))
+        );
+        assert_eq!(parse("https://wsd.invalid/nav?url=ftp%3A%2F%2Fexample.com"), None);
+        assert_eq!(parse("https://wsd.invalid/nav?url=not+a+url"), None);
     }
 
     #[test]
