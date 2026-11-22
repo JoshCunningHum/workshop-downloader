@@ -5,8 +5,8 @@ import type { SnapshotRow } from '~/lib/db/schema'
 import { openInFileManager } from '~/lib/services/files'
 
 // The downloaded revisions of an item. Each row offers "Make active" when it isn't the linked
-// one; opening its folder, pinning and deleting are in its menu.
-const props = defineProps<{
+// one, a delete button, and opening its folder or pinning in its menu.
+defineProps<{
   snapshots: SnapshotRow[]
   activeId: number | null
   linked: boolean
@@ -22,16 +22,10 @@ const emit = defineEmits<{
 const attempt = useAttempt()
 
 function menu(s: SnapshotRow): DropdownMenuItem[][] {
-  const active = s.id === props.activeId
-  return [
-    [
-      { label: 'Open folder', icon: 'i-lucide-folder-open', onSelect: () => attempt('Opening folder', () => openInFileManager(s.path)) },
-      { label: s.pinned ? 'Unpin' : 'Pin (keep always)', icon: s.pinned ? 'i-lucide-pin-off' : 'i-lucide-pin', onSelect: () => emit('toggle-pin', s.id, !s.pinned) }
-    ],
-    [
-      { label: active ? 'Delete (make another active first)' : 'Delete', icon: 'i-lucide-trash-2', color: 'error', disabled: active, onSelect: () => emit('remove', s.id) }
-    ]
-  ]
+  return [[
+    { label: 'Open folder', icon: 'i-lucide-folder-open', onSelect: () => attempt('Opening folder', () => openInFileManager(s.path)) },
+    { label: s.pinned ? 'Unpin' : 'Pin (keep always)', icon: s.pinned ? 'i-lucide-pin-off' : 'i-lucide-pin', onSelect: () => emit('toggle-pin', s.id, !s.pinned) }
+  ]]
 }
 </script>
 
@@ -51,6 +45,10 @@ function menu(s: SnapshotRow): DropdownMenuItem[][] {
       <div class="min-w-0 flex-1">
         <p class="flex flex-wrap items-center gap-1.5 text-sm">
           <span class="font-medium text-highlighted">{{ formatTime(s.timeUpdated) }}</span>
+          <span
+            v-if="s.id === activeId"
+            class="text-xs text-muted"
+          >{{ formatRelative(s.timeUpdated) }}</span>
           <UBadge
             v-if="s.id === activeId"
             size="sm"
@@ -93,6 +91,16 @@ function menu(s: SnapshotRow): DropdownMenuItem[][] {
         :label="s.id === activeId ? 'Link' : 'Make active'"
         :loading="busy"
         @click="emit('make-active', s.id)"
+      />
+      <UButton
+        size="sm"
+        color="error"
+        variant="ghost"
+        icon="i-lucide-trash-2"
+        :disabled="s.id === activeId || busy"
+        :title="s.id === activeId ? 'Make another snapshot active first' : 'Delete snapshot'"
+        aria-label="Delete snapshot"
+        @click="emit('remove', s.id)"
       />
       <UDropdownMenu
         :items="menu(s)"

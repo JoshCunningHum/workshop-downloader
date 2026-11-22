@@ -6,7 +6,7 @@ const appId = Number(route.params.appId)
 const page = useGamePage(appId)
 const { data, refresh, app, gameVersion, busy, run, checkUpdates, verifyLinks, detectGameVersion, detectAdapter } = page
 const items = useGameItems(appId, page)
-const { visibleRows, search, outdatedIds, selected, allSelected, selectedRows } = items
+const { visibleRows, search, sorting, outdatedIds, selected, allSelected, selectedRows } = items
 
 // The item list, the game's settings (gear button) or its history (history button).
 const view = ref<'items' | 'settings' | 'history'>('items')
@@ -47,12 +47,14 @@ const view = ref<'items' | 'settings' | 'history'>('items')
             @download="items.download([...selected])"
             @link="items.link(selectedRows())"
             @unlink="items.unlink(selectedRows())"
+            @delete-duplicates="items.deleteDuplicates(selectedRows())"
             @remove="items.remove(selectedRows())"
           />
         </GameInfoBar>
 
         <GameItemsTable
           v-if="view === 'items'"
+          v-model:sorting="sorting"
           :rows="visibleRows"
           :selected="selected"
           :all-selected="allSelected"

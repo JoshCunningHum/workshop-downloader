@@ -7,6 +7,7 @@ import * as restorePoints from '~/lib/services/restore-points'
 import * as snapshotEvents from '~/lib/services/snapshot-events'
 import * as snapshots from '~/lib/services/snapshots'
 import type { AdapterDefinition } from '~/types/adapters'
+import { snapshotsToPrune } from '~/utils/retention'
 
 // Snapshots and the links that point the game's mod folder at the active one.
 export function useLibrary() {
@@ -101,6 +102,16 @@ export function useLibrary() {
     return doomed
   }
 
+  /** Deletes every snapshot except the active (or newest) one; pinned and restore-point ones stay. */
+  async function deleteDuplicates(itemId: string) {
+    const item = await items.get(itemId)
+    if (!item) return []
+    const kept = await restorePoints.protectedSnapshotIds(item.appId)
+    const doomed = snapshotsToPrune(await snapshots.listForItem(itemId), 1, item.activeSnapshotId, kept)
+    for (const s of doomed) await deleteSnapshot(s.id)
+    return doomed
+  }
+
   /** Removes an item completely: link, snapshots on disk, rows. */
   async function removeItem(itemId: string) {
     await unlink(itemId)
@@ -149,6 +160,7 @@ export function useLibrary() {
     setPinned: snapshots.setPinned,
     deleteSnapshot,
     prune,
+    deleteDuplicates,
     removeItem,
     detectVersions,
     redetectApp

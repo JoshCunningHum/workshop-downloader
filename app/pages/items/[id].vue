@@ -4,8 +4,17 @@ import { itemPage } from '~/lib/services/workshop-browser'
 
 // A workshop item: back to its game, its details card, and the snapshots it keeps.
 const route = useRoute()
+const router = useRouter()
 const id = String(route.params.id)
 const { data, gameVersion, downloading, busy, makeActive, togglePin, remove, unlink, redetect, download, setAutoUpdate, releaseHold } = useItemPage(id)
+
+// Back to the game with its search and sort intact (they live in its URL); a direct visit
+// to this item has no such page to return to.
+function goBack() {
+  const previous = router.options.history.state.back
+  if (typeof previous === 'string' && previous.startsWith(`${ROUTES.games}/`)) router.back()
+  else if (data.value) router.push(ROUTES.game(data.value.item.appId))
+}
 
 const itemLinks = useItemLinks()
 const updateAvailable = computed(() => {
@@ -27,12 +36,12 @@ const updateAvailable = computed(() => {
       <template v-else>
         <div>
           <UButton
-            :to="ROUTES.game(data.item.appId)"
             size="sm"
             color="neutral"
             variant="ghost"
             icon="i-lucide-arrow-left"
             :label="data.app?.name ?? `App ${data.item.appId}`"
+            @click="goBack"
           />
         </div>
 
@@ -58,8 +67,19 @@ const updateAvailable = computed(() => {
             <h2 class="font-semibold">
               Snapshots
             </h2>
-            <span class="text-sm text-muted">
-              {{ data.snapshots.length }} kept<template v-if="data.app?.retention"> · up to {{ data.app.retention }} plus pinned and active</template>
+            <UBadge
+              v-if="data.snapshots.length > 1"
+              size="sm"
+              color="neutral"
+              variant="subtle"
+            >
+              {{ data.snapshots.length }}
+            </UBadge>
+            <span
+              v-if="data.app?.retention"
+              class="text-sm text-muted"
+            >
+              up to {{ data.app.retention }} plus pinned and active
             </span>
           </div>
 

@@ -5,6 +5,7 @@ import { ROUTES } from '~/constants/routes'
 
 // The workshop items of a game: versions, active snapshot, link status and per-row actions.
 const props = defineProps<{ rows: GameItemRow[], selected: Set<string>, allSelected: boolean }>()
+const sorting = defineModel<{ id: string, desc: boolean }[]>('sorting', { default: () => [] })
 const emit = defineEmits<{
   'toggle': [id: string, on: boolean | 'indeterminate']
   'toggle-all': [on: boolean | 'indeterminate']
@@ -37,8 +38,7 @@ const meta = computed(() => ({
 const diskSize = (row: GameItemRow) => row.active?.sizeBytes || row.latest?.sizeBytes || 0
 
 // Sortable columns get a value to sort by; their cells are the slots below. Unsorted, rows keep
-// the order they come in (by title).
-const sorting = ref<{ id: string, desc: boolean }[]>([])
+// the order they come in (by title). The sort is a model so the page can keep it in the URL.
 const columns: TableColumn<GameItemRow>[] = [
   { id: 'select', enableSorting: false },
   { id: 'title', accessorFn: r => (r.item.title || r.item.id).toLowerCase() },
@@ -171,12 +171,23 @@ const columns: TableColumn<GameItemRow>[] = [
       </UBadge>
     </template>
     <template #active-cell="{ row }">
-      <span v-if="row.original.active">{{ formatTime(row.original.active.timeUpdated) }}</span>
+      <span
+        v-if="row.original.active"
+        :title="formatTime(row.original.active.timeUpdated)"
+      >{{ formatRelative(row.original.active.timeUpdated) }}</span>
       <span
         v-else
         class="text-muted"
       >—</span>
-      <span class="text-xs text-muted"> ({{ row.original.count }} kept)</span>
+      <UBadge
+        v-if="row.original.count > 1"
+        class="ms-2"
+        size="sm"
+        color="neutral"
+        variant="subtle"
+      >
+        {{ row.original.count }}
+      </UBadge>
     </template>
     <template #link-cell="{ row }">
       <UBadge

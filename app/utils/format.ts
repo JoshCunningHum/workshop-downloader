@@ -15,6 +15,23 @@ export function formatMs(ms: number | null | undefined): string {
   return new Date(ms).toLocaleString()
 }
 
+/** Unix seconds as "just now", "5 min ago", "2 days ago"; "—" when unknown. */
+export function formatRelative(seconds: number | null | undefined, now = Date.now()): string {
+  if (!seconds) return '—'
+  const diff = Math.round((now - seconds * 1000) / 1000)
+  const abs = Math.abs(diff)
+  if (abs < 10) return 'just now'
+  let value: number
+  let unit: Intl.RelativeTimeFormatUnit
+  if (abs < 60) [value, unit] = [abs, 'second']
+  else if (abs < 3600) [value, unit] = [Math.floor(abs / 60), 'minute']
+  else if (abs < 86400) [value, unit] = [Math.floor(abs / 3600), 'hour']
+  else if (abs < 2592000) [value, unit] = [Math.floor(abs / 86400), 'day']
+  else if (abs < 31536000) [value, unit] = [Math.floor(abs / 2592000), 'month']
+  else [value, unit] = [Math.floor(abs / 31536000), 'year']
+  return new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(diff < 0 ? value : -value, unit)
+}
+
 /** Seconds as m:ss or h:mm:ss; "—" when unknown. */
 export function formatDuration(seconds: number | null | undefined): string {
   if (seconds == null || !Number.isFinite(seconds)) return '—'

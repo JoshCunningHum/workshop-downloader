@@ -2,7 +2,7 @@
 // Actions for the items ticked in a game's item table, shown in the game bar's row. They always
 // take their space (the buttons are only hidden), so ticking the first item doesn't shift the row.
 defineProps<{ count: number }>()
-const emit = defineEmits<{ download: [], link: [], unlink: [], remove: [] }>()
+const emit = defineEmits<{ 'download': [], 'link': [], 'unlink': [], 'delete-duplicates': [], 'remove': [] }>()
 </script>
 
 <template>
@@ -34,6 +34,15 @@ const emit = defineEmits<{ download: [], link: [], unlink: [], remove: [] }>()
       icon="i-lucide-unlink"
       label="Unlink"
       @click="emit('unlink')"
+    />
+    <UButton
+      size="sm"
+      color="neutral"
+      variant="outline"
+      icon="i-lucide-copy-x"
+      label="Delete duplicates"
+      title="Keep only the active (or newest) snapshot of each selected item"
+      @click="emit('delete-duplicates')"
     />
     <UButton
       size="sm"

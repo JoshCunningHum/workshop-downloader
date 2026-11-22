@@ -35,8 +35,32 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'gameV
   })
   const outdatedIds = computed(() => rows.value.filter(r => r.updateAvailable).map(r => r.item.id))
 
+  // Search and sort live in the URL (replace, not push) so returning from an item keeps them.
+  const route = useRoute()
+  const router = useRouter()
+  const SORT_COLUMNS = new Set(['title', 'versions', 'active', 'size', 'link'])
+
+  const search = ref(typeof route.query.q === 'string' ? route.query.q : '')
+  const sortId = typeof route.query.sort === 'string' && SORT_COLUMNS.has(route.query.sort) ? route.query.sort : null
+  const sorting = ref<{ id: string, desc: boolean }[]>(sortId ? [{ id: sortId, desc: route.query.dir === 'desc' }] : [])
+
+  watch([search, sorting], () => {
+    const query = { ...route.query }
+    const needle = search.value.trim()
+    if (needle) query.q = needle
+    else delete query.q
+    const sort = sorting.value[0]
+    if (sort) {
+      query.sort = sort.id
+      query.dir = sort.desc ? 'desc' : 'asc'
+    } else {
+      delete query.sort
+      delete query.dir
+    }
+    router.replace({ query })
+  }, { deep: true })
+
   // The table shows the rows whose title or id contains the search text.
-  const search = ref('')
   const visibleRows = computed(() => {
     const needle = search.value.trim().toLowerCase()
     if (!needle) return rows.value
@@ -96,6 +120,21 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'gameV
     })
   }
 
+  /** Keeps only the active (or newest) snapshot of each selected item, freeing its extras. */
+  function deleteDuplicates(target: GameItemRow[]) {
+    return run('Delete duplicates', async () => {
+      let deleted = 0
+      let freed = 0
+      for (const row of target) {
+        for (const s of await library.deleteDuplicates(row.item.id)) {
+          deleted++
+          freed += s.sizeBytes
+        }
+      }
+      toast.add({ title: deleted ? `Deleted ${deleted} snapshot(s)` : 'No extra snapshots', description: deleted ? `Freed ${formatBytes(freed)}` : undefined, color: 'success' })
+    })
+  }
+
   function remove(target: GameItemRow[]) {
     return run('Remove', async () => {
       for (const row of target) await library.removeItem(row.item.id)
@@ -103,5 +142,5 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'gameV
     })
   }
 
-  return { rows, visibleRows, search, outdatedIds, selected, allSelected, selectedRows, toggle, toggleAll, download, link, unlink, release, remove }
+  return { rows, visibleRows, search, sorting, outdatedIds, selected, allSelected, selectedRows, toggle, toggleAll, download, link, unlink, release, deleteDuplicates, remove }
 }
