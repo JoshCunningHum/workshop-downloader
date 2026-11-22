@@ -3,8 +3,9 @@ import type { ItemDetails } from '~/types/steam'
 
 // Wraps a workshop item (row, thumbnail, ...) with a detail card that follows the cursor.
 // Steam data is fetched on first hover and cached; library data is read each time it opens.
-// Holding Shift locks the open card (see useTooltipLock): it stops following the cursor,
-// grows, shows the whole description and scrolls, and no other card opens meanwhile.
+// Holding the lock key (Shift on macOS, Control elsewhere — see useTooltipLock) locks the open
+// card: it stops following the cursor, grows, shows the whole description and scrolls, and no
+// other card opens meanwhile.
 const props = defineProps<{
   itemId: string
   /** Already-fetched Web API details (e.g. a freshly resolved item); skips the fetch. */
@@ -16,7 +17,7 @@ const props = defineProps<{
 const { remote, loadingRemote, local, load } = useItemDetails(() => props.itemId, props.details)
 
 const id = useId()
-const { shift, locked } = useTooltipLock()
+const { held, locked } = useTooltipLock()
 const isLocked = computed(() => locked.value === id)
 
 const open = ref(false)
@@ -27,14 +28,14 @@ watch(open, (value) => {
 })
 
 function onOpenChange(value: boolean) {
-  // Locked: only releasing Shift closes it. Another card locked: this one doesn't open.
+  // Locked: only releasing the lock key closes it. Another card locked: this one doesn't open.
   if (isLocked.value || (value && locked.value)) return
   open.value = value
 }
 
-// Shift held while this card is open (or opening) locks it.
-watch([shift, open], ([held, isOpen]) => {
-  if (held && isOpen && !locked.value) locked.value = id
+// The lock key held while this card is open (or opening) locks it.
+watch([held, open], ([down, isOpen]) => {
+  if (down && isOpen && !locked.value) locked.value = id
 })
 // Lock released: back to a normal card, if the pointer is still on the item.
 watch(isLocked, (now, before) => {
@@ -57,9 +58,18 @@ function follow(event: PointerEvent) {
 const contentClass = computed(() => [
   'h-auto flex-col items-stretch gap-0 rounded-md p-0 text-default',
   isLocked.value
-    ? 'pointer-events-auto w-md max-h-[min(80vh,40rem)] overflow-y-auto ring-2 ring-primary/50'
+    ? 'pointer-events-auto w-md ring-2 ring-primary/50'
     : 'pointer-events-none w-80 overflow-hidden'
 ].join(' '))
+
+const scroller = useTemplateRef<HTMLElement>('scroller')
+// The wheel is handled by hand while locked: Control+wheel (the Windows lock key) would zoom
+// the page, and Shift+wheel arrives as a horizontal delta on some platforms.
+function onWheel(event: WheelEvent) {
+  if (!isLocked.value) return
+  event.preventDefault()
+  scroller.value?.scrollBy({ top: event.deltaY || event.deltaX })
+}
 </script>
 
 <template>
@@ -83,13 +93,19 @@ const contentClass = computed(() => [
     </div>
 
     <template #content>
-      <WorkshopItemDetailsCard
-        :item-id="itemId"
-        :remote="remote"
-        :loading-remote="loadingRemote"
-        :local="local"
-        :expanded="isLocked"
-      />
+      <div
+        ref="scroller"
+        :class="isLocked ? 'max-h-[min(80vh,40rem)] overflow-y-auto' : ''"
+        @wheel="onWheel"
+      >
+        <WorkshopItemDetailsCard
+          :item-id="itemId"
+          :remote="remote"
+          :loading-remote="loadingRemote"
+          :local="local"
+          :expanded="isLocked"
+        />
+      </div>
     </template>
   </UTooltip>
 </template>

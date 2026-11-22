@@ -3,7 +3,7 @@ import type { ItemLibraryInfo } from '~/types/items'
 import type { ItemDetails } from '~/types/steam'
 
 // Everything known about a workshop item: Steam figures, description, tags and library state.
-// `expanded` (the card is Shift-locked) shows the whole description, title and tags.
+// `expanded` (the card is locked with the platform's key) shows the whole description, title.
 const props = defineProps<{
   itemId: string
   remote: ItemDetails | null
@@ -11,6 +11,8 @@ const props = defineProps<{
   local: ItemLibraryInfo | null
   expanded?: boolean
 }>()
+
+const { keyLabel } = useTooltipLock()
 
 const title = computed(() => props.remote?.title || props.local?.title || props.itemId)
 const missing = computed(() => !!props.remote && props.remote.result !== 1)
@@ -206,7 +208,7 @@ const shownTags = computed(() => props.expanded ? tags.value : tags.value.slice(
       v-if="!expanded"
       class="text-xs text-dimmed"
     >
-      Hold ⇧ Shift to read more
+      Hold {{ keyLabel }} to read more
     </p>
   </div>
 </template>
