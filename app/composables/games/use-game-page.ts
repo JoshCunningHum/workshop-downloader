@@ -11,7 +11,7 @@ export function useGamePage(appId: number) {
 
   // Revisits render the cached data at once, then refresh it in the background. The default
   // cache only applies while hydrating; this app is a client-only SPA, so keep the data in
-  // memory across visits instead of refetching (and flashing) on every navigation.
+  // memory across visits. Real refreshes (every action's run) must fetch, not reuse the cache.
   let fromCache = false
   const { data, refresh, status } = useAsyncData(`app-${appId}`, async () => {
     const app = await catalog.getApp(appId)
@@ -27,7 +27,8 @@ export function useGamePage(appId: number) {
       accounts: await accounts.list()
     }
   }, {
-    getCachedData: (key, nuxtApp) => {
+    getCachedData: (key, nuxtApp, ctx) => {
+      if (ctx.cause === 'refresh:manual' || ctx.cause === 'refresh:hook') return undefined
       fromCache = nuxtApp.payload.data[key] !== undefined
       return nuxtApp.payload.data[key]
     }

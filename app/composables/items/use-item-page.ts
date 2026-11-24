@@ -5,7 +5,8 @@ export function useItemPage(id: string) {
   const jobsStore = useJobs()
   const toast = useToast()
 
-  // Revisits render the cached data at once, then refresh it in the background.
+  // Revisits render the cached data at once, then refresh it in the background. Real
+  // refreshes (every action's run) must fetch, not reuse the cache.
   let fromCache = false
   const { data, refresh, status } = useAsyncData(`item-${id}`, async () => {
     const item = await catalog.getItem(id)
@@ -17,7 +18,8 @@ export function useItemPage(id: string) {
       link: await library.linkFor(id)
     }
   }, {
-    getCachedData: (key, nuxtApp) => {
+    getCachedData: (key, nuxtApp, ctx) => {
+      if (ctx.cause === 'refresh:manual' || ctx.cause === 'refresh:hook') return undefined
       fromCache = nuxtApp.payload.data[key] !== undefined
       return nuxtApp.payload.data[key]
     }

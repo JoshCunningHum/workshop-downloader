@@ -7,7 +7,8 @@ import type { DiskUsage } from '~/types/games'
 export function useGameList() {
   const catalog = useCatalog()
 
-  // Revisits render the cached list at once, then refresh it in the background.
+  // Revisits render the cached list at once, then refresh it in the background. Real
+  // refreshes (the update-all queue) must fetch, not reuse the cache.
   let fromCache = false
   const { data: apps, refresh, status } = useAsyncData('apps', async () => {
     const [rows, counts, usage] = await Promise.all([catalog.listApps(), catalog.itemCountsByApp(), catalog.diskUsageByApp()])
@@ -17,7 +18,8 @@ export function useGameList() {
       return { ...app, items: counts[app.appId] ?? 0, disk }
     })
   }, {
-    getCachedData: (key, nuxtApp) => {
+    getCachedData: (key, nuxtApp, ctx) => {
+      if (ctx.cause === 'refresh:manual' || ctx.cause === 'refresh:hook') return undefined
       fromCache = nuxtApp.payload.data[key] !== undefined
       return nuxtApp.payload.data[key]
     }
