@@ -19,6 +19,32 @@ async function checkAll() {
     toast.add({ title: 'Update check failed', description: String(e), color: 'error' })
   }
 }
+
+// Queues every outdated item the last check found, across all games.
+const outdatedCount = computed(() => Object.values(updates.outdated.value).reduce((n, ids) => n + ids.length, 0))
+const jobsStore = useJobs()
+const updating = ref(false)
+async function updateAll() {
+  updating.value = true
+  try {
+    const busy = jobsStore.busyItemIds.value
+    let queued = 0
+    for (const [appId, ids] of Object.entries(updates.outdated.value)) {
+      const queue = (ids ?? []).filter(id => !busy.has(id))
+      if (queue.length) {
+        await jobsStore.enqueue(Number(appId), queue)
+        queued += queue.length
+      }
+    }
+    // The count returns with the next check; the queue is what matters now.
+    updates.outdated.value = {}
+    toast.add({ title: `Queued ${queued} item(s)`, color: 'success' })
+  } catch (e) {
+    toast.add({ title: 'Update all failed', description: String(e), color: 'error' })
+  } finally {
+    updating.value = false
+  }
+}
 </script>
 
 <template>
@@ -35,6 +61,16 @@ async function checkAll() {
           size="sm"
           :label="`Show hidden (${hiddenCount})`"
           class="ms-3"
+        />
+        <UButton
+          v-if="outdatedCount"
+          size="xs"
+          icon="i-lucide-download"
+          :label="`Update all ${outdatedCount}`"
+          color="primary"
+          variant="outline"
+          :loading="updating"
+          @click="updateAll"
         />
         <UButton
           class="ms-auto"
