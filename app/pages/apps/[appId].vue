@@ -85,6 +85,7 @@ const disk = computed(() => diskUsage(data.value?.items ?? [], data.value?.snaps
           :rows="visibleRows"
           :selected="selected"
           :all-selected="allSelected"
+          :game-version="gameVersion"
           @toggle="items.toggle"
           @toggle-all="items.toggleAll"
           @download="items.download"

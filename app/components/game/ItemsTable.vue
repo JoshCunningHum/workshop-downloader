@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { TableColumn, TableRow } from '@nuxt/ui'
 import type { GameItemRow } from '~/types/games'
+import { fitsVersion } from '~/lib/adapters/engine'
 import { ROUTES } from '~/constants/routes'
+
 // The workshop items of a game: versions, active snapshot, link status and per-row actions.
-const props = defineProps<{ rows: GameItemRow[], selected: Set<string>, allSelected: boolean }>()
+const props = defineProps<{ rows: GameItemRow[], selected: Set<string>, allSelected: boolean, gameVersion: string | null }>()
 const sorting = defineModel<{ id: string, desc: boolean }[]>('sorting', { default: () => [] })
 const emit = defineEmits<{
   'toggle': [id: string, on: boolean | 'indeterminate']
@@ -35,6 +37,16 @@ const meta = computed(() => ({
 
 /** Downloaded size (active snapshot, else the newest), or 0 when nothing is downloaded. */
 const diskSize = (row: GameItemRow) => row.active?.sizeBytes || row.latest?.sizeBytes || 0
+
+/**
+ * One item version's colour: green when it fits the game's version; red when none of the
+ * item's versions do; gray when this one misses but another fits. Unknown game version: gray.
+ */
+function versionClass(versions: string[], version: string): string {
+  if (!props.gameVersion) return 'text-muted'
+  if (fitsVersion(props.gameVersion, version)) return 'text-success'
+  return versions.some(v => fitsVersion(props.gameVersion!, v)) ? 'text-muted' : 'text-error'
+}
 
 // Sortable columns get a value to sort by; their cells are the slots below. Unsorted, rows keep
 // the order they come in (by title). The sort is a model so the page can keep it in the URL.
@@ -188,16 +200,21 @@ const virtualize = reactive({
       >{{ formatBytes(row.original.item.fileSize) }}</span>
     </template>
     <template #versions-cell="{ row }">
-      <span>{{ row.original.active?.itemVersions.join(', ') || '—' }}</span>
-      <UBadge
-        v-if="row.original.compatible !== null"
-        class="ms-2"
-        size="sm"
-        :color="row.original.compatible ? 'success' : 'error'"
-        variant="subtle"
-      >
-        {{ row.original.compatible ? 'fits' : 'mismatch' }}
-      </UBadge>
+      <span v-if="row.original.active?.itemVersions.length">
+        <template
+          v-for="(v, i) in row.original.active.itemVersions"
+          :key="i"
+        >
+          <span
+            v-if="i"
+            class="text-dimmed"
+          >, </span><span :class="versionClass(row.original.active.itemVersions, v)">{{ v }}</span>
+        </template>
+      </span>
+      <span
+        v-else
+        class="text-muted"
+      >—</span>
     </template>
     <template #active-cell="{ row }">
       <span

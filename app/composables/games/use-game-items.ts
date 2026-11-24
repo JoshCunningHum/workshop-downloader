@@ -1,15 +1,14 @@
-import { isCompatible } from '~/lib/adapters/engine'
 import type { SnapshotRow } from '~/lib/db/schema'
 import type { GameItemRow } from '~/types/games'
 import type { GamePage } from './use-game-page'
 
 // The item table of a game's page: rows, selection, and download/link/unlink/remove.
-export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'gameVersion' | 'run'>) {
+export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'run'>) {
   const library = useLibrary()
   const catalog = useCatalog()
   const jobsStore = useJobs()
   const toast = useToast()
-  const { data, gameVersion, run } = page
+  const { data, run } = page
 
   const rows = computed<GameItemRow[]>(() => {
     if (!data.value) return []
@@ -28,8 +27,7 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'gameV
         latest,
         count: snaps.length,
         link: data.value!.links.find(l => l.itemId === item.id) ?? null,
-        updateAvailable: item.remoteTimeUpdated > (latest?.timeUpdated ?? 0),
-        compatible: isCompatible(gameVersion.value, active?.itemVersions ?? [])
+        updateAvailable: item.remoteTimeUpdated > (latest?.timeUpdated ?? 0)
       }
     })
   })
