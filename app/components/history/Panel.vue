@@ -9,7 +9,7 @@ const emit = defineEmits<{ back: [] }>()
 const history = useRestorePoint(props.appId, props.page)
 const {
   points, byDay, pointsByDay, day, dayEvents, dayPoints, range, point, items, snapshots,
-  applicable, confirming, confirmPlan, confirmTitle, hold
+  applicable, confirming, confirmPlan, confirmTitle
 } = history
 onMounted(history.reload)
 
@@ -144,7 +144,6 @@ async function save() {
 
   <HistoryRestoreModal
     v-model:open="confirming"
-    v-model:hold="hold"
     :title="confirmTitle"
     :plan="confirmPlan"
     :items="items"

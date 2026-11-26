@@ -3,7 +3,7 @@ import { RESTORE_GROUPS } from '~/constants/history'
 import type { ItemRow, SnapshotRow } from '~/lib/db/schema'
 import type { RestoreChange } from '~/utils/restore-point'
 
-// Confirms a restore: what changes per item, and whether to hold the changed items.
+// Confirms a restore: what changes per item.
 const props = defineProps<{
   title: string
   plan: RestoreChange[]
@@ -11,7 +11,6 @@ const props = defineProps<{
   snapshots: Map<number, SnapshotRow>
 }>()
 const open = defineModel<boolean>('open', { default: false })
-const hold = defineModel<boolean>('hold', { default: true })
 const emit = defineEmits<{ confirm: [] }>()
 
 const groups = computed(() => RESTORE_GROUPS
@@ -57,12 +56,6 @@ function revision(id: number | null) {
             </li>
           </ul>
         </section>
-
-        <UCheckbox
-          v-model="hold"
-          label="Hold changed items at this version"
-          description="Auto-update skips them, and new downloads are kept without being made active. Release the hold from the item table."
-        />
       </div>
     </template>
 

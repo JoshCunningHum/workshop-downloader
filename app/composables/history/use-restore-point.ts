@@ -9,7 +9,6 @@ import type { GamePage } from '../games/use-game-page'
 // and restoring to either.
 export function useRestorePoint(appId: number, page: Pick<GamePage, 'data' | 'run'>) {
   const library = useLibrary()
-  const catalog = useCatalog()
   const toast = useToast()
   const { data, run } = page
 
@@ -56,7 +55,6 @@ export function useRestorePoint(appId: number, page: Pick<GamePage, 'data' | 'ru
   /** A saved point being restored (its recorded state), or null for the ruler's point. */
   const savedTarget = ref<RestorePointRow | null>(null)
   const confirming = ref(false)
-  const hold = ref(true)
   watch(confirming, (open) => {
     if (!open) savedTarget.value = null
   })
@@ -78,7 +76,6 @@ export function useRestorePoint(appId: number, page: Pick<GamePage, 'data' | 'ru
 
   function restore() {
     const changes = confirmPlan.value.filter(c => c.action !== 'missing')
-    const holdChanged = hold.value
     confirming.value = false
     return run('Restore', async () => {
       const failed: string[] = []
@@ -86,7 +83,6 @@ export function useRestorePoint(appId: number, page: Pick<GamePage, 'data' | 'ru
         try {
           if (change.to === null) await library.unlink(change.itemId, { reason: 'restore' })
           else await library.activate(change.to, { reason: 'restore' })
-          if (holdChanged) await catalog.updateItem(change.itemId, { held: true })
         } catch (e) {
           failed.push(`${itemMap.value.get(change.itemId)?.title || change.itemId}: ${e instanceof Error ? e.message : String(e)}`)
         }
@@ -130,7 +126,7 @@ export function useRestorePoint(appId: number, page: Pick<GamePage, 'data' | 'ru
   return {
     events, points, reload, byDay, pointsByDay, day, dayEvents, dayPoints, range, point,
     items: itemMap, snapshots, plan, applicable,
-    confirming, confirmPlan, confirmTitle, hold, restore, confirmSaved,
+    confirming, confirmPlan, confirmTitle, restore, confirmSaved,
     savePoint, deletePoint, showPoint
   }
 }
