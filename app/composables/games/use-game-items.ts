@@ -92,6 +92,8 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'run'>
       const queue = ids.filter(id => !busyIds.has(id))
       if (!queue.length) throw new Error('Those items are already downloading')
       await jobsStore.enqueue(appId, queue)
+      // The rows now show the downloading badge; keeping them ticked would just be noise.
+      selected.value = new Set()
       toast.add({ title: `Queued ${queue.length} item(s)`, color: 'success' })
     })
   }
