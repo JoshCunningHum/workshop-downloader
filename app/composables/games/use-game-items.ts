@@ -25,6 +25,7 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'run'>
         item,
         active,
         latest,
+        snapshots: snaps,
         count: snaps.length,
         link: data.value!.links.find(l => l.itemId === item.id) ?? null,
         updateAvailable: item.remoteTimeUpdated > (latest?.timeUpdated ?? 0)
@@ -36,7 +37,7 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'run'>
   // Search and sort live in the URL (replace, not push) so returning from an item keeps them.
   const route = useRoute()
   const router = useRouter()
-  const SORT_COLUMNS = new Set(['title', 'versions', 'active', 'size', 'link'])
+  const SORT_COLUMNS = new Set(['title', 'versions', 'size', 'link'])
 
   const search = ref(typeof route.query.q === 'string' ? route.query.q : '')
   const sortId = typeof route.query.sort === 'string' && SORT_COLUMNS.has(route.query.sort) ? route.query.sort : null
@@ -120,6 +121,11 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'run'>
     })
   }
 
+  /** Switches an item's active snapshot from the table's cell selector. */
+  function makeActive(snapshotId: number) {
+    return run('Switching version', () => library.activate(snapshotId))
+  }
+
   /** Keeps only the active (or newest) snapshot of each selected item, freeing its extras. */
   function deleteDuplicates(target: GameItemRow[]) {
     return run('Delete duplicates', async () => {
@@ -142,5 +148,5 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'run'>
     })
   }
 
-  return { rows, visibleRows, search, sorting, outdatedIds, selected, allSelected, selectedRows, toggle, toggleAll, download, link, unlink, setLock, deleteDuplicates, remove }
+  return { rows, visibleRows, search, sorting, outdatedIds, selected, allSelected, selectedRows, toggle, toggleAll, download, link, unlink, makeActive, setLock, deleteDuplicates, remove }
 }

@@ -5,6 +5,8 @@ export interface GameItemRow {
   item: ItemRow
   active: SnapshotRow | null
   latest: SnapshotRow | null
+  /** Every downloaded revision, newest first; the active cell lists them. */
+  snapshots: SnapshotRow[]
   count: number
   link: LinkRow | null
   updateAvailable: boolean

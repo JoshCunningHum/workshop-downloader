@@ -11,6 +11,13 @@ const { visibleRows, search, sorting, outdatedIds, selected, allSelected, select
 // The item list, the game's settings (gear button) or its history (history button).
 const view = ref<'items' | 'settings' | 'history'>('items')
 
+// A search text or a sort is active; the info bar offers to clear both.
+const filtered = computed(() => !!search.value.trim() || !!sorting.value.length)
+const clearFilters = () => {
+  search.value = ''
+  sorting.value = []
+}
+
 // Snapshots on disk in the library: the active ones, the inactive ones, and their total.
 const disk = computed(() => diskUsage(data.value?.items ?? [], data.value?.snapshots ?? []))
 </script>
@@ -61,12 +68,14 @@ const disk = computed(() => diskUsage(data.value?.items ?? [], data.value?.snaps
           :busy="busy"
           :outdated-count="outdatedIds.length"
           :view="view"
+          :filtered="filtered"
           @detect="detectGameVersion"
           @detect-adapter="detectAdapter"
           @update-outdated="items.download(outdatedIds)"
           @check-updates="checkUpdates"
           @verify-links="verifyLinks"
           @open-view="view = $event"
+          @clear="clearFilters"
         >
           <GameSelectionBar
             v-if="view === 'items'"
@@ -94,6 +103,7 @@ const disk = computed(() => diskUsage(data.value?.items ?? [], data.value?.snaps
           @link="items.link"
           @unlink="items.unlink"
           @lock="items.setLock"
+          @make-active="items.makeActive"
         />
 
         <HistoryPanel

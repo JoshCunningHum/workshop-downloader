@@ -17,6 +17,13 @@
   --color-green-950: #052E16;
 }
 
+/* Long version strings in the game table pan back and forth (game/VersionTicker.vue). */
+@keyframes wsd-pan {
+  0%, 10% { transform: translateX(0); }
+  50%, 60% { transform: translateX(var(--wsd-pan)); }
+  100% { transform: translateX(0); }
+}
+
 /* Workshop descriptions rendered from BBCode (utils/bbcode.ts). */
 @utility bbcode {
   overflow-wrap: anywhere;

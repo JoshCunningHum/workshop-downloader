@@ -12,6 +12,8 @@ defineProps<{
   busy: boolean
   outdatedCount: number
   view: 'items' | 'settings' | 'history'
+  /** A search text or sort is active; the clear button appears while it is. */
+  filtered?: boolean
 }>()
 const search = defineModel<string>('search', { default: '' })
 const emit = defineEmits<{
@@ -21,6 +23,7 @@ const emit = defineEmits<{
   'check-updates': []
   'verify-links': []
   'open-view': [view: 'items' | 'settings' | 'history']
+  'clear': []
 }>()
 </script>
 
@@ -81,6 +84,19 @@ const emit = defineEmits<{
         placeholder="Search items…"
         class="w-64"
       />
+      <UTooltip
+        v-if="view === 'items' && filtered"
+        text="Clear the search and the sort"
+      >
+        <UButton
+          size="sm"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-x"
+          aria-label="Clear the search and the sort"
+          @click="emit('clear')"
+        />
+      </UTooltip>
       <!-- Actions for ticked items (the item table's selection bar). -->
       <slot />
 

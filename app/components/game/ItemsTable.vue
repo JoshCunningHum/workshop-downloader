@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TableColumn, TableRow } from '@nuxt/ui'
+import type { DropdownMenuItem, TableColumn, TableRow } from '@nuxt/ui'
 import type { GameItemRow } from '~/types/games'
 import { fitsVersion } from '~/lib/adapters/engine'
 import { ROUTES } from '~/constants/routes'
@@ -14,6 +14,7 @@ const emit = defineEmits<{
   'link': [rows: GameItemRow[]]
   'unlink': [rows: GameItemRow[]]
   'lock': [rows: GameItemRow[], on: boolean]
+  'make-active': [snapshotId: number]
 }>()
 
 const jobsStore = useJobs()
@@ -48,17 +49,40 @@ function versionClass(versions: string[], version: string): string {
   return versions.some(v => fitsVersion(props.gameVersion!, v)) ? 'text-muted' : 'text-error'
 }
 
+/** The active snapshot is the newest downloaded one. */
+const isLatest = (row: GameItemRow) => row.active?.id === row.latest?.id
+
+/** The revision picker of one row: every downloaded snapshot, newest first. */
+function snapshotMenu(row: GameItemRow): DropdownMenuItem[] {
+  return row.snapshots.map((s) => {
+    const versions = s.itemVersions.join(', ') || 'unknown'
+    const newest = s.id === row.latest?.id
+    const selected = s.id === row.active?.id
+    return {
+      label: newest ? `${versions} (latest)` : versions,
+      description: formatRelative(s.timeUpdated),
+      icon: s.pinned && !selected ? 'i-lucide-pin' : undefined,
+      // The selected one shows in primary green with a trailing check; it stays clickable.
+      color: selected ? 'primary' : 'neutral',
+      title: formatTime(s.timeUpdated),
+      selected,
+      onSelect: selected ? undefined : () => emit('make-active', s.id)
+    }
+  })
+}
+
 // Sortable columns get a value to sort by; their cells are the slots below. Unsorted, rows keep
 // the order they come in (by title). The sort is a model so the page can keep it in the URL.
+// Every column but the title has a fixed width (the table layout is fixed), so rows line up.
 const columns: TableColumn<GameItemRow>[] = [
-  { id: 'select', enableSorting: false },
+  { id: 'select', enableSorting: false, meta: { class: { td: 'w-8', th: 'w-8' } } },
   { id: 'title', accessorFn: r => (r.item.title || r.item.id).toLowerCase() },
-  { id: 'versions', accessorFn: r => r.active?.itemVersions.join(', ') ?? '' },
-  { id: 'active', accessorFn: r => r.active?.timeUpdated ?? 0 },
+  // Versions and the active snapshot share one column: sorted by the active revision's date.
+  { id: 'versions', accessorFn: r => r.active?.timeUpdated ?? 0, meta: { class: { td: 'w-64', th: 'w-64' } } },
   // Not downloaded: Steam's size, so the column still orders by how big the item is.
-  { id: 'size', accessorFn: r => diskSize(r) || r.item.fileSize },
-  { id: 'link', accessorFn: r => r.link?.status ?? '' },
-  { id: 'actions', enableSorting: false }
+  { id: 'size', accessorFn: r => diskSize(r) || r.item.fileSize, meta: { class: { td: 'w-24 text-right font-mono', th: 'w-24 text-right' } } },
+  { id: 'link', accessorFn: r => r.link?.status ?? '', meta: { class: { td: 'w-16 text-center', th: 'w-16 text-center' } } },
+  { id: 'actions', enableSorting: false, meta: { class: { td: 'w-40 text-right', th: 'w-40' } } }
 ]
 
 // Only the visible rows mount (each carries a tooltip and a thumbnail). The page's scrollable
@@ -99,7 +123,7 @@ const virtualize = reactive({
     :columns="columns"
     :meta="meta"
     :on-select="selecting ? toggleRow : undefined"
-    :ui="{ td: 'py-0' }"
+    :ui="{ base: 'table-fixed', td: 'py-0' }"
   >
     <template #select-header>
       <UCheckbox
@@ -167,13 +191,7 @@ const virtualize = reactive({
     <template #versions-header="{ column }">
       <GameSortHeader
         :column="column"
-        label="Item versions"
-      />
-    </template>
-    <template #active-header="{ column }">
-      <GameSortHeader
-        :column="column"
-        label="Active snapshot"
+        label="Versions"
       />
     </template>
     <template #size-header="{ column }">
@@ -199,54 +217,100 @@ const virtualize = reactive({
         title="Not downloaded; size on Steam"
       >{{ formatBytes(row.original.item.fileSize) }}</span>
     </template>
+    <!-- Versions and the active snapshot in one cell: two joined boxes opening the revision
+         picker. The left one carries the versions and their date, the narrow right one the
+         snapshot count (a chevron when there is only one). -->
     <template #versions-cell="{ row }">
-      <span v-if="row.original.active?.itemVersions.length">
-        <template
-          v-for="(v, i) in row.original.active.itemVersions"
-          :key="i"
-        >
-          <span
-            v-if="i"
-            class="text-dimmed"
-          >, </span><span :class="versionClass(row.original.active.itemVersions, v)">{{ v }}</span>
-        </template>
-      </span>
-      <span
-        v-else
-        class="text-muted"
-      >—</span>
-    </template>
-    <template #active-cell="{ row }">
-      <span
+      <UDropdownMenu
         v-if="row.original.active"
-        :title="formatTime(row.original.active.timeUpdated)"
-      >{{ formatRelative(row.original.active.timeUpdated) }}</span>
+        :items="snapshotMenu(row.original)"
+        :ui="{ content: 'w-60', item: 'py-2', itemDescription: 'text-xs' }"
+        :content="{ align: 'start' }"
+      >
+        <UFieldGroup size="sm">
+          <UButton
+            color="neutral"
+            variant="outline"
+            class="h-auto px-2 py-1 text-start font-normal"
+            :title="`${formatTime(row.original.active.timeUpdated)} — switch revision`"
+          >
+            <div class="min-w-0">
+              <p class="flex items-center">
+                <!-- Too-long versions pan; the (latest) tag sits still inside the same width. -->
+                <GameVersionTicker>
+                  <template
+                    v-for="(v, i) in row.original.active.itemVersions"
+                    :key="i"
+                  >
+                    <span
+                      v-if="i"
+                      class="text-dimmed"
+                    >, </span><span :class="versionClass(row.original.active.itemVersions, v)">{{ v }}</span>
+                  </template>
+                  <span
+                    v-if="!row.original.active.itemVersions.length"
+                    class="text-muted"
+                  >unknown</span>
+                  <template #aside>
+                    <span
+                      v-if="isLatest(row.original)"
+                      class="text-dimmed"
+                    >(latest)</span>
+                  </template>
+                </GameVersionTicker>
+              </p>
+              <p class="text-xs text-muted">
+                {{ formatRelative(row.original.active.timeUpdated) }}
+              </p>
+            </div>
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            class="w-8 justify-center px-0 tabular-nums"
+            :title="row.original.count > 1 ? `${row.original.count} snapshots — pick another` : 'Switch revision'"
+          >
+            <span v-if="row.original.count > 1">{{ row.original.count }}</span>
+            <UIcon
+              v-else
+              name="i-lucide-chevron-down"
+              class="size-3.5"
+            />
+          </UButton>
+        </UFieldGroup>
+        <template #trailing="{ item }">
+          <UIcon
+            v-if="(item as { selected?: boolean }).selected"
+            name="i-lucide-circle-check"
+            class="size-4 text-primary"
+          />
+        </template>
+      </UDropdownMenu>
       <span
         v-else
         class="text-muted"
       >—</span>
-      <UBadge
-        v-if="row.original.count > 1"
-        class="ms-2"
-        size="sm"
-        color="neutral"
-        variant="subtle"
-      >
-        {{ row.original.count }}
-      </UBadge>
     </template>
     <template #link-cell="{ row }">
-      <UBadge
+      <UTooltip
         v-if="row.original.link"
-        :color="row.original.link.status === 'ok' ? 'success' : 'error'"
-        variant="subtle"
+        :text="row.original.link.status.replace('_', ' ')"
       >
-        {{ row.original.link.status.replace('_', ' ') }}
-      </UBadge>
-      <span
+        <UIcon
+          :name="row.original.link.status === 'ok' ? 'i-lucide-circle-check' : 'i-lucide-circle-x'"
+          class="size-4"
+          :class="row.original.link.status === 'ok' ? 'text-success' : 'text-error'"
+        />
+      </UTooltip>
+      <UTooltip
         v-else
-        class="text-muted"
-      >not linked</span>
+        text="not linked"
+      >
+        <UIcon
+          name="i-lucide-unlink"
+          class="size-4 text-dimmed"
+        />
+      </UTooltip>
     </template>
     <template #actions-cell="{ row }">
       <div class="flex justify-end gap-1">
