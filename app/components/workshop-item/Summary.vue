@@ -3,7 +3,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import type { AppRow, ItemRow, LinkRow } from '~/lib/db/schema'
 
 // A workshop item's header card: preview, title, status badges and details, with Download as the
-// main action and the rest (workshop page, re-detect, unlink, release hold) in a menu.
+// main action and the rest (workshop page, re-detect, unlink, lock) in a menu.
 const props = defineProps<{
   item: ItemRow
   app: AppRow | null
@@ -20,7 +20,7 @@ const emit = defineEmits<{
   'open-workshop': []
   'redetect': []
   'unlink': []
-  'release-hold': []
+  'lock': [on: boolean]
 }>()
 
 const menu = computed<DropdownMenuItem[][]>(() => [
@@ -29,7 +29,9 @@ const menu = computed<DropdownMenuItem[][]>(() => [
     { label: 'Re-detect versions', icon: 'i-lucide-scan-search', disabled: !props.canRedetect, onSelect: () => emit('redetect') }
   ],
   [
-    ...(props.item.held ? [{ label: 'Release hold', icon: 'i-lucide-lock-open', onSelect: () => emit('release-hold') }] : []),
+    ...(props.item.held
+      ? [{ label: 'Unlock (follow updates)', icon: 'i-lucide-lock-open', onSelect: () => emit('lock', false) }]
+      : [{ label: 'Lock at this version', icon: 'i-lucide-lock', onSelect: () => emit('lock', true) }]),
     ...(props.link ? [{ label: 'Unlink', icon: 'i-lucide-unlink', color: 'error' as const, onSelect: () => emit('unlink') }] : [])
   ]
 ].filter(group => group.length))
@@ -106,9 +108,9 @@ const menu = computed<DropdownMenuItem[][]>(() => [
           color="info"
           variant="subtle"
           icon="i-lucide-lock"
-          title="Held at this version: auto-update skips it and new downloads aren't made active"
+          title="Locked at this version: auto-update skips it and new downloads aren't made active"
         >
-          held
+          locked
         </UBadge>
         <UBadge
           v-for="tag in item.tags"

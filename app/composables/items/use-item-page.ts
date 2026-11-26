@@ -57,7 +57,7 @@ export function useItemPage(id: string) {
   })
   const download = () => run('Download', () => jobsStore.enqueue(data.value!.item.appId, [id]))
   const setAutoUpdate = (on: boolean) => run('Saving', () => catalog.updateItem(id, { autoUpdate: on }))
-  const releaseHold = () => run('Release hold', () => catalog.updateItem(id, { held: false }))
+  const setLock = (on: boolean) => run(on ? 'Lock' : 'Unlock', () => catalog.updateItem(id, { held: on }))
 
-  return { data, refresh, status, gameVersion, downloading, busy, makeActive, togglePin, remove, unlink, redetect, download, setAutoUpdate, releaseHold }
+  return { data, refresh, status, gameVersion, downloading, busy, makeActive, togglePin, remove, unlink, redetect, download, setAutoUpdate, setLock }
 }

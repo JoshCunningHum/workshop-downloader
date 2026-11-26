@@ -6,7 +6,7 @@ import { itemPage } from '~/lib/services/workshop-browser'
 const route = useRoute()
 const router = useRouter()
 const id = String(route.params.id)
-const { data, status, gameVersion, downloading, busy, makeActive, togglePin, remove, unlink, redetect, download, setAutoUpdate, releaseHold } = useItemPage(id)
+const { data, status, gameVersion, downloading, busy, makeActive, togglePin, remove, unlink, redetect, download, setAutoUpdate, setLock } = useItemPage(id)
 
 // Back to the game with its search and sort intact (they live in its URL); a direct visit
 // to this item has no such page to return to.
@@ -70,7 +70,7 @@ const updateAvailable = computed(() => {
           @open-workshop="itemLinks.open(itemPage(data.item.id))"
           @redetect="redetect"
           @unlink="unlink"
-          @release-hold="releaseHold"
+          @lock="setLock"
         />
 
         <section class="space-y-2">

@@ -111,10 +111,10 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'run'>
     })
   }
 
-  /** Lets held items follow updates again. */
-  function release(target: GameItemRow[]) {
-    return run('Release hold', async () => {
-      for (const row of target) await catalog.updateItem(row.item.id, { held: false })
+  /** Locks items at their current version (or unlocks them to follow updates again). */
+  function setLock(target: GameItemRow[], on: boolean) {
+    return run(on ? 'Lock' : 'Unlock', async () => {
+      for (const row of target) await catalog.updateItem(row.item.id, { held: on })
     })
   }
 
@@ -140,5 +140,5 @@ export function useGameItems(appId: number, page: Pick<GamePage, 'data' | 'run'>
     })
   }
 
-  return { rows, visibleRows, search, sorting, outdatedIds, selected, allSelected, selectedRows, toggle, toggleAll, download, link, unlink, release, deleteDuplicates, remove }
+  return { rows, visibleRows, search, sorting, outdatedIds, selected, allSelected, selectedRows, toggle, toggleAll, download, link, unlink, setLock, deleteDuplicates, remove }
 }

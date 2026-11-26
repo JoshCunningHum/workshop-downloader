@@ -63,9 +63,9 @@ export function useJobEvents() {
       job.log.push(`[app] version detection failed for ${item.id}: ${String(e)}`)
     }
     // A fresh download becomes the active version; older snapshots stay available to switch back.
-    // Held items keep their version: the new revision is only kept.
+    // Locked items keep their version: the new revision is only kept.
     if (item.held) {
-      job.log.push(`[app] ${item.id} is held; new revision kept but not activated`)
+      job.log.push(`[app] ${item.id} is locked; new revision kept but not activated`)
     } else {
       try {
         await library.activate(snapshot.id, { reason: 'download' })

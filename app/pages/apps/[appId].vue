@@ -71,9 +71,11 @@ const disk = computed(() => diskUsage(data.value?.items ?? [], data.value?.snaps
           <GameSelectionBar
             v-if="view === 'items'"
             :count="selected.size"
+            :any-locked="selectedRows().some(r => r.item.held)"
             @download="items.download([...selected])"
             @link="items.link(selectedRows())"
             @unlink="items.unlink(selectedRows())"
+            @lock="items.setLock(selectedRows(), $event)"
             @delete-duplicates="items.deleteDuplicates(selectedRows())"
             @remove="items.remove(selectedRows())"
           />
@@ -91,7 +93,7 @@ const disk = computed(() => diskUsage(data.value?.items ?? [], data.value?.snaps
           @download="items.download"
           @link="items.link"
           @unlink="items.unlink"
-          @release="items.release"
+          @lock="items.setLock"
         />
 
         <HistoryPanel

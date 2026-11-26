@@ -13,7 +13,7 @@ const emit = defineEmits<{
   'download': [ids: string[]]
   'link': [rows: GameItemRow[]]
   'unlink': [rows: GameItemRow[]]
-  'release': [rows: GameItemRow[]]
+  'lock': [rows: GameItemRow[], on: boolean]
 }>()
 
 const jobsStore = useJobs()
@@ -149,9 +149,9 @@ const virtualize = reactive({
                 size="sm"
                 color="info"
                 variant="subtle"
-                title="Held at this version: auto-update skips it and new downloads aren't made active"
+                title="Locked at this version: auto-update skips it and new downloads aren't made active"
               >
-                held
+                locked
               </UBadge>
             </div>
           </div>
@@ -261,8 +261,17 @@ const virtualize = reactive({
           color="neutral"
           variant="ghost"
           icon="i-lucide-lock-open"
-          title="Release hold"
-          @click="emit('release', [row.original])"
+          title="Unlock: follow updates again"
+          @click="emit('lock', [row.original], false)"
+        />
+        <UButton
+          v-else
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-lock"
+          title="Lock at this version: auto-update skips it and new downloads aren't made active"
+          @click="emit('lock', [row.original], true)"
         />
         <UButton
           size="xs"

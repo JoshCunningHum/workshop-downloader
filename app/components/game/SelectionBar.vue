@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // Actions for the items ticked in a game's item table, shown in the game bar's row. They always
 // take their space (the buttons are only hidden), so ticking the first item doesn't shift the row.
-defineProps<{ count: number }>()
-const emit = defineEmits<{ 'download': [], 'link': [], 'unlink': [], 'delete-duplicates': [], 'remove': [] }>()
+// `anyLocked`: at least one ticked item is locked, so the lock button offers to unlock.
+defineProps<{ count: number, anyLocked: boolean }>()
+const emit = defineEmits<{ 'download': [], 'link': [], 'unlink': [], 'lock': [on: boolean], 'delete-duplicates': [], 'remove': [] }>()
 </script>
 
 <template>
@@ -34,6 +35,17 @@ const emit = defineEmits<{ 'download': [], 'link': [], 'unlink': [], 'delete-dup
       icon="i-lucide-unlink"
       label="Unlink"
       @click="emit('unlink')"
+    />
+    <UButton
+      size="sm"
+      color="neutral"
+      variant="outline"
+      :icon="anyLocked ? 'i-lucide-lock-open' : 'i-lucide-lock'"
+      :label="anyLocked ? 'Unlock' : 'Lock'"
+      :title="anyLocked
+        ? 'Follow updates again'
+        : 'Stay at this version: auto-update skips it and new downloads aren\'t made active'"
+      @click="emit('lock', !anyLocked)"
     />
     <UButton
       size="sm"
